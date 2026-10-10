@@ -41,7 +41,7 @@ HTML_CONTENT = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>Loewe Remote</title>
     <style>
         * {
@@ -51,71 +51,82 @@ HTML_CONTENT = """<!DOCTYPE html>
             padding: 0;
         }
 
-        :root {
-            --bg-body: #0a0a0c;
-            --remote-surface: #17181c;
-            --touchpad-surface: #222329;
-            --touchpad-active: #2b2c34;
-            --touchpad-rim: #33343d;
-            --button-surface: #23242a;
-            --button-active: #3a3b45;
-            --accent-standby: #e54d42;
-            --text-primary: #f5f5f7;
-            --text-muted: #86868b;
-            --status-green: #30d158;
-            --status-red: #ff453a;
+        html, body {
+            width: 100%;
+            height: 100%;
+            min-height: 100%;
+            max-height: 100%;
+            overflow: hidden;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #0a0a0c;
+            color: #f5f5f7;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            -webkit-touch-callout: none;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
-            background-color: var(--bg-body);
-            color: var(--text-primary);
-            min-height: 100vh;
+            display: -webkit-flex;
             display: flex;
+            -webkit-flex-direction: column;
             flex-direction: column;
+            -webkit-align-items: center;
             align-items: center;
+            -webkit-justify-content: center;
             justify-content: center;
-            padding: 12px;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: manipulation;
-            overflow: hidden; /* Lock viewport scrolling on Passport so keyboard swipes route to remote */
+            padding: 10px;
         }
 
         /* Remote Chassis: Apple TV Siri Remote Aluminum Unibody styling */
         .remote-frame {
             width: 100%;
-            max-width: 370px;
+            max-width: 360px;
+            max-height: 98vh;
+            background: #17181c;
             background: linear-gradient(180deg, #1f2025 0%, #151619 100%);
             border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 44px;
-            padding: 22px 20px 24px 20px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+            border-radius: 40px;
+            padding: 16px 18px 18px 18px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+            display: -webkit-flex;
             display: flex;
+            -webkit-flex-direction: column;
             flex-direction: column;
+            -webkit-align-items: center;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
         }
 
         /* Top Header: Brand & Status Pill */
         .header {
             width: 100%;
+            display: -webkit-flex;
             display: flex;
+            -webkit-align-items: center;
             align-items: center;
+            -webkit-justify-content: space-between;
             justify-content: space-between;
-            padding: 0 8px;
+            padding: 0 6px;
         }
 
         .brand-title {
             font-size: 0.95rem;
             font-weight: 700;
             letter-spacing: 3px;
-            color: var(--text-muted);
+            color: #86868b;
             text-transform: uppercase;
         }
 
         .status-pill {
+            display: -webkit-inline-flex;
             display: inline-flex;
+            -webkit-align-items: center;
             align-items: center;
             gap: 6px;
             font-size: 0.75rem;
@@ -123,7 +134,7 @@ HTML_CONTENT = """<!DOCTYPE html>
             padding: 4px 10px;
             border-radius: 12px;
             background: rgba(255, 255, 255, 0.05);
-            color: var(--text-muted);
+            color: #86868b;
             letter-spacing: 0.5px;
             transition: all 0.3s ease;
         }
@@ -132,45 +143,53 @@ HTML_CONTENT = """<!DOCTYPE html>
             width: 7px;
             height: 7px;
             border-radius: 50%;
-            background: var(--text-muted);
+            background: #86868b;
         }
 
         .status-pill.online {
             background: rgba(48, 209, 88, 0.12);
-            color: var(--status-green);
+            color: #30d158;
         }
         .status-pill.online .status-dot {
-            background: var(--status-green);
-            box-shadow: 0 0 8px var(--status-green);
+            background: #30d158;
+            box-shadow: 0 0 8px #30d158;
         }
 
         .status-pill.standby {
             background: rgba(255, 69, 58, 0.12);
-            color: var(--status-red);
+            color: #ff453a;
         }
         .status-pill.standby .status-dot {
-            background: var(--status-red);
+            background: #ff453a;
         }
 
         /* Upper Section: Siri Remote Clickpad / Touch Surface */
         .clickpad-wrapper {
             position: relative;
-            width: 240px;
-            height: 240px;
-            margin: 2px 0;
+            width: 210px;
+            height: 210px;
+            margin: 0;
+            flex-shrink: 0;
         }
 
         .touchpad {
             position: absolute;
-            inset: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             border-radius: 50%;
+            background: #222329;
             background: radial-gradient(circle at 50% 35%, #2a2b32 0%, #1e1f24 100%);
-            border: 2px solid var(--touchpad-rim);
-            box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.6), 0 8px 24px rgba(0, 0, 0, 0.4);
+            border: 2px solid #33343d;
+            box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.6), 0 6px 18px rgba(0, 0, 0, 0.4);
             cursor: pointer;
             touch-action: none;
+            display: -webkit-flex;
             display: flex;
+            -webkit-align-items: center;
             align-items: center;
+            -webkit-justify-content: center;
             justify-content: center;
             overflow: hidden;
             transition: border-color 0.15s, background-color 0.15s, transform 0.1s;
@@ -178,6 +197,7 @@ HTML_CONTENT = """<!DOCTYPE html>
 
         .touchpad:active, .touchpad.active {
             border-color: #555765;
+            -webkit-transform: scale(0.985);
             transform: scale(0.985);
         }
 
@@ -185,32 +205,38 @@ HTML_CONTENT = """<!DOCTYPE html>
         .arrow-hint {
             position: absolute;
             color: rgba(255, 255, 255, 0.3);
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 800;
             pointer-events: none;
             transition: color 0.15s, transform 0.15s;
         }
-        .arrow-hint.hint-up    { top: 10px; }
-        .arrow-hint.hint-down  { bottom: 10px; }
-        .arrow-hint.hint-left  { left: 12px; }
-        .arrow-hint.hint-right { right: 12px; }
+        .arrow-hint.hint-up    { top: 8px; }
+        .arrow-hint.hint-down  { bottom: 8px; }
+        .arrow-hint.hint-left  { left: 10px; }
+        .arrow-hint.hint-right { right: 10px; }
 
         .arrow-hint.active {
             color: #ffffff;
+            -webkit-transform: scale(1.35);
             transform: scale(1.35);
         }
 
         /* Inner Center OK Disc */
         .center-button {
-            width: 90px;
-            height: 90px;
+            width: 82px;
+            height: 82px;
             border-radius: 50%;
+            background: #222329;
             background: linear-gradient(145deg, #282930, #1c1d22);
             border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            display: -webkit-flex;
             display: flex;
+            -webkit-flex-direction: column;
             flex-direction: column;
+            -webkit-align-items: center;
             align-items: center;
+            -webkit-justify-content: center;
             justify-content: center;
             pointer-events: none;
             transition: transform 0.1s, background 0.15s;
@@ -224,56 +250,65 @@ HTML_CONTENT = """<!DOCTYPE html>
         }
 
         .center-sublabel {
-            font-size: 0.6rem;
-            color: var(--text-muted);
+            font-size: 0.55rem;
+            color: #86868b;
             letter-spacing: 0.5px;
             margin-top: 1px;
             text-transform: uppercase;
         }
 
         .center-button.pressed {
+            -webkit-transform: scale(0.92);
             transform: scale(0.92);
-            background: linear-gradient(145deg, #353640, #222329);
+            background: #353640;
         }
 
-        /* Lower Section: 2-Column Physical Style Buttons (Apple TV Grid) */
+        /* Lower Section: 2-Column Physical Style Buttons (Flexbox for 100% BB10 compatibility) */
         .keypad-grid {
             width: 100%;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-gap: 13px 15px;
-            padding: 2px 4px;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-flex-wrap: wrap;
+            flex-wrap: wrap;
+            -webkit-justify-content: space-between;
+            justify-content: space-between;
+            padding: 0 2px;
         }
 
         .remote-btn {
+            width: 48%;
+            margin-bottom: 10px;
             appearance: none;
             -webkit-appearance: none;
-            background: var(--button-surface);
-            color: var(--text-primary);
+            background: #23242a;
+            color: #f5f5f7;
             border: 1px solid rgba(255, 255, 255, 0.06);
-            border-radius: 20px;
-            padding: 15px 12px;
-            font-size: 0.95rem;
+            border-radius: 18px;
+            padding: 13px 8px;
+            font-size: 0.9rem;
             font-weight: 600;
+            display: -webkit-flex;
             display: flex;
+            -webkit-align-items: center;
             align-items: center;
+            -webkit-justify-content: center;
             justify-content: center;
-            gap: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            gap: 6px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.35);
             cursor: pointer;
-            transition: background 0.12s, transform 0.08s, box-shadow 0.12s;
+            transition: background 0.12s, transform 0.08s;
             touch-action: manipulation;
         }
 
         .remote-btn:active, .remote-btn.pressed {
-            background: var(--button-active);
+            background: #3a3b45;
+            -webkit-transform: scale(0.95);
             transform: scale(0.95);
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
         }
 
         .remote-btn svg {
-            width: 19px;
-            height: 19px;
+            width: 18px;
+            height: 18px;
             fill: currentColor;
             flex-shrink: 0;
         }
@@ -301,23 +336,26 @@ HTML_CONTENT = """<!DOCTYPE html>
 
         /* Volume Rocker Group */
         .vol-rocker {
+            width: 48%;
+            display: -webkit-flex;
             display: flex;
-            gap: 6px;
-            width: 100%;
+            gap: 4px;
+            margin-bottom: 10px;
         }
 
         .vol-rocker .remote-btn {
-            flex: 1;
-            padding: 15px 6px;
+            width: 48%;
+            margin-bottom: 0;
+            padding: 13px 4px;
         }
 
-        /* Passport Capacitive Keyboard & Navigation Banner */
+        /* Passport Capacitive Keyboard Banner */
         .keyboard-hint {
-            font-size: 0.72rem;
-            color: var(--text-muted);
+            font-size: 0.7rem;
+            color: #86868b;
             text-align: center;
-            line-height: 1.4;
-            padding: 0 8px;
+            line-height: 1.3;
+            padding: 0 4px;
         }
 
         .keyboard-hint .badge-passport {
@@ -328,33 +366,40 @@ HTML_CONTENT = """<!DOCTYPE html>
         .keyboard-hint kbd {
             background: rgba(255, 255, 255, 0.1);
             border-radius: 4px;
-            padding: 1px 5px;
+            padding: 1px 4px;
             font-family: monospace;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: #d1d1d6;
         }
 
-        /* Responsive adaptation for Passport 1440x1440 / Small displays */
-        @media (max-height: 620px), (max-width: 360px) {
+        /* Responsive Compact adaptation for 1440x1440 Passport square */
+        @media (max-height: 700px), (max-width: 380px) {
+            body { padding: 4px; }
             .remote-frame {
-                padding: 14px 14px 16px 14px;
-                gap: 12px;
-                max-width: 330px;
+                padding: 12px 14px 14px 14px;
+                gap: 8px;
+                max-width: 340px;
+                border-radius: 32px;
             }
             .clickpad-wrapper {
-                width: 200px;
-                height: 200px;
+                width: 180px;
+                height: 180px;
             }
             .center-button {
-                width: 76px;
-                height: 76px;
+                width: 70px;
+                height: 70px;
             }
             .remote-btn {
-                padding: 12px 8px;
+                padding: 11px 6px;
                 font-size: 0.85rem;
+                margin-bottom: 8px;
+                border-radius: 14px;
             }
-            .keypad-grid {
-                grid-gap: 10px 12px;
+            .vol-rocker {
+                margin-bottom: 8px;
+            }
+            .vol-rocker .remote-btn {
+                padding: 11px 2px;
             }
         }
     </style>
@@ -440,13 +485,24 @@ HTML_CONTENT = """<!DOCTYPE html>
 
         <!-- Physical Keyboard & Capacitive Swipe Indicator -->
         <footer class="keyboard-hint">
-            <span class="badge-passport">&#9889; Passport Black Tech:</span> Brush keyboard to swipe 4-way &bull; Press <kbd>Enter</kbd> OK &bull; <kbd>H</kbd> Home &bull; <kbd>B</kbd> Back
+            <span class="badge-passport">&#9889; Passport:</span> Glide keyboard to navigate &bull; <kbd>Enter</kbd> OK &bull; <kbd>H</kbd> Home &bull; <kbd>B</kbd> Back
         </footer>
     </main>
 
     <script>
         // ES5 Pure JavaScript - 100% compatible with BB10 WebKit and modern smartphones
         var tvOnline = false;
+
+        // CRITICAL FOR BB10: Lock global page viewport movement permanently
+        // In BB10 WebKit, passing boolean 'false' instead of modern option object
+        window.addEventListener('scroll', function() {
+            window.scrollTo(0, 0);
+        }, false);
+
+        document.addEventListener('touchmove', function(e) {
+            // Prevent viewport scrolling/bouncing unless interacting directly with clickpad
+            e.preventDefault();
+        }, false);
 
         // Visual flash indicator helper for Touchpad hints
         function flashDirection(dir) {
@@ -631,17 +687,20 @@ HTML_CONTENT = """<!DOCTYPE html>
         // BLACKBERRY PASSPORT CAPACITIVE PHYSICAL KEYBOARD SWIPE (WHEEL/MOUSEWHEEL ENGINE)
         // In BB10 WebKit, gliding/swiping fingers across the physical capacitive keyboard
         // dispatches native scroll/wheel/mousewheel events. We intercept them globally to control
-        // TV navigation without even touching the screen!
+        // TV navigation without moving the page viewport.
         (function initPassportCapacitiveKeyboardSwipe() {
             var accumX = 0;
             var accumY = 0;
             var lastTriggerTime = 0;
-            var ACCUM_THRESHOLD = 35; // Accumulated delta needed to fire a step
-            var THROTTLE_MS = 220;     // Prevent runaway repeat
+            var ACCUM_THRESHOLD = 20; // Lowered threshold for responsive key glide
+            var THROTTLE_MS = 200;
 
             function handleScrollDelta(dx, dy, e) {
                 if (e && e.preventDefault) {
                     e.preventDefault();
+                }
+                if (e && e.stopPropagation) {
+                    e.stopPropagation();
                 }
 
                 accumX += dx;
@@ -655,11 +714,11 @@ HTML_CONTENT = """<!DOCTYPE html>
                 // Check vertical swipe first
                 if (Math.abs(accumY) >= ACCUM_THRESHOLD && Math.abs(accumY) >= Math.abs(accumX)) {
                     if (accumY > 0) {
-                        // Swiping finger DOWN on keyboard scrolls content down -> send TV DOWN (33)
+                        // Swiping finger DOWN on keyboard -> send TV DOWN (33)
                         flashDirection('down');
                         sendAction('key', '33', 'l2700');
                     } else {
-                        // Swiping finger UP on keyboard scrolls content up -> send TV UP (32)
+                        // Swiping finger UP on keyboard -> send TV UP (32)
                         flashDirection('up');
                         sendAction('key', '32', 'l2700');
                     }
@@ -684,19 +743,25 @@ HTML_CONTENT = """<!DOCTYPE html>
                 }
             }
 
-            // Standard W3C wheel event (modern WebKit)
+            // Standard W3C wheel event - strict boolean false for BB10
             window.addEventListener('wheel', function(e) {
                 var dx = e.deltaX || 0;
                 var dy = e.deltaY || 0;
                 handleScrollDelta(dx, dy, e);
-            }, { passive: false });
+            }, false);
 
-            // Legacy WebKit mousewheel event (older BB10 WebKit engine)
+            // Legacy WebKit mousewheel event
             window.addEventListener('mousewheel', function(e) {
                 var dx = -(e.wheelDeltaX || 0) / 40;
                 var dy = -(e.wheelDeltaY || (e.wheelDelta || 0)) / 40;
                 handleScrollDelta(dx, dy, e);
-            }, { passive: false });
+            }, false);
+            
+            document.addEventListener('mousewheel', function(e) {
+                var dx = -(e.wheelDeltaX || 0) / 40;
+                var dy = -(e.wheelDeltaY || (e.wheelDelta || 0)) / 40;
+                handleScrollDelta(dx, dy, e);
+            }, false);
         })();
 
         // BlackBerry Passport Physical Keyboard Press Handler (PC / Blind Backup)
@@ -747,7 +812,7 @@ HTML_CONTENT = """<!DOCTYPE html>
                     sendAction('key', '20', 'l2700'); // Vol -
                     e.preventDefault();
                 }
-            });
+            }, false);
         })();
 
         // Polling loop for TV online status (every 4 seconds)
