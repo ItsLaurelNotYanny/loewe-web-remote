@@ -79,6 +79,7 @@ HTML_CONTENT = """<!DOCTYPE html>
             user-select: none;
             -webkit-user-select: none;
             touch-action: manipulation;
+            overflow: hidden; /* Lock viewport scrolling on Passport so keyboard swipes route to remote */
         }
 
         /* Remote Chassis: Apple TV Siri Remote Aluminum Unibody styling */
@@ -88,12 +89,12 @@ HTML_CONTENT = """<!DOCTYPE html>
             background: linear-gradient(180deg, #1f2025 0%, #151619 100%);
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 44px;
-            padding: 22px 20px 26px 20px;
+            padding: 22px 20px 24px 20px;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.12);
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 18px;
+            gap: 16px;
         }
 
         /* Top Header: Brand & Status Pill */
@@ -156,7 +157,7 @@ HTML_CONTENT = """<!DOCTYPE html>
             position: relative;
             width: 240px;
             height: 240px;
-            margin: 4px 0;
+            margin: 2px 0;
         }
 
         .touchpad {
@@ -196,7 +197,7 @@ HTML_CONTENT = """<!DOCTYPE html>
 
         .arrow-hint.active {
             color: #ffffff;
-            transform: scale(1.3);
+            transform: scale(1.35);
         }
 
         /* Inner Center OK Disc */
@@ -240,8 +241,8 @@ HTML_CONTENT = """<!DOCTYPE html>
             width: 100%;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            grid-gap: 14px 16px;
-            padding: 4px 6px;
+            grid-gap: 13px 15px;
+            padding: 2px 4px;
         }
 
         .remote-btn {
@@ -251,7 +252,7 @@ HTML_CONTENT = """<!DOCTYPE html>
             color: var(--text-primary);
             border: 1px solid rgba(255, 255, 255, 0.06);
             border-radius: 20px;
-            padding: 16px 12px;
+            padding: 15px 12px;
             font-size: 0.95rem;
             font-weight: 600;
             display: flex;
@@ -271,8 +272,8 @@ HTML_CONTENT = """<!DOCTYPE html>
         }
 
         .remote-btn svg {
-            width: 20px;
-            height: 20px;
+            width: 19px;
+            height: 19px;
             fill: currentColor;
             flex-shrink: 0;
         }
@@ -307,16 +308,21 @@ HTML_CONTENT = """<!DOCTYPE html>
 
         .vol-rocker .remote-btn {
             flex: 1;
-            padding: 16px 6px;
+            padding: 15px 6px;
         }
 
-        /* Helper info banner for Passport Keyboard */
+        /* Passport Capacitive Keyboard & Navigation Banner */
         .keyboard-hint {
             font-size: 0.72rem;
             color: var(--text-muted);
             text-align: center;
             line-height: 1.4;
-            padding: 0 10px;
+            padding: 0 8px;
+        }
+
+        .keyboard-hint .badge-passport {
+            color: #60a5fa;
+            font-weight: 600;
         }
 
         .keyboard-hint kbd {
@@ -329,7 +335,7 @@ HTML_CONTENT = """<!DOCTYPE html>
         }
 
         /* Responsive adaptation for Passport 1440x1440 / Small displays */
-        @media (max-height: 600px), (max-width: 360px) {
+        @media (max-height: 620px), (max-width: 360px) {
             .remote-frame {
                 padding: 14px 14px 16px 14px;
                 gap: 12px;
@@ -344,7 +350,7 @@ HTML_CONTENT = """<!DOCTYPE html>
                 height: 76px;
             }
             .remote-btn {
-                padding: 13px 8px;
+                padding: 12px 8px;
                 font-size: 0.85rem;
             }
             .keypad-grid {
@@ -392,7 +398,7 @@ HTML_CONTENT = """<!DOCTYPE html>
                 <span>HOME</span>
             </button>
 
-            <!-- Row 2: Play/Pause & TV Mode -->
+            <!-- Row 2: Play/Pause & Menu -->
             <button class="remote-btn" onclick="sendAction('key', '53', 'l2700-hdr')" title="Play / Pause" aria-label="Play / Pause">
                 <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z M14.5 19h2V5h-2v14z"/></svg>
                 <span>PLAY</span>
@@ -432,15 +438,26 @@ HTML_CONTENT = """<!DOCTYPE html>
             </button>
         </section>
 
-        <!-- Physical Keyboard Shortcuts Hint (Passport Blind Operation) -->
+        <!-- Physical Keyboard & Capacitive Swipe Indicator -->
         <footer class="keyboard-hint">
-            Passport / PC: <kbd>W</kbd>/<kbd>S</kbd>/<kbd>A</kbd>/<kbd>D</kbd> or Arrows &bull; <kbd>Enter</kbd>/<kbd>Space</kbd> OK &bull; <kbd>H</kbd> Home &bull; <kbd>B</kbd> Back
+            <span class="badge-passport">&#9889; Passport Black Tech:</span> Brush keyboard to swipe 4-way &bull; Press <kbd>Enter</kbd> OK &bull; <kbd>H</kbd> Home &bull; <kbd>B</kbd> Back
         </footer>
     </main>
 
     <script>
         // ES5 Pure JavaScript - 100% compatible with BB10 WebKit and modern smartphones
         var tvOnline = false;
+
+        // Visual flash indicator helper for Touchpad hints
+        function flashDirection(dir) {
+            var el = document.getElementById('hint-' + dir);
+            if (el) {
+                el.className = 'arrow-hint hint-' + dir + ' active';
+                setTimeout(function() {
+                    el.className = 'arrow-hint hint-' + dir;
+                }, 220);
+            }
+        }
 
         // Trigger native device haptic vibration if supported
         function hapticFeedback(pattern) {
@@ -502,7 +519,7 @@ HTML_CONTENT = """<!DOCTYPE html>
             });
         }
 
-        // Touchpad Gestures: Tap for OK, Swipe for Up/Down/Left/Right
+        // Touchpad Gestures on Screen: Tap for OK, Swipe for Up/Down/Left/Right
         (function initTouchpad() {
             var pad = document.getElementById('touchpad');
             var disc = document.getElementById('center-disc');
@@ -604,14 +621,85 @@ HTML_CONTENT = """<!DOCTYPE html>
                 handleStart(e.clientX, e.clientY);
             });
             window.addEventListener('mousemove', function(e) {
-                handleMove(e.clientX, e.clientY, e);
+                handleMove(e.clientX, e.clientY);
             });
             window.addEventListener('mouseup', function() {
                 handleEnd();
             });
         })();
 
-        // BlackBerry Passport Physical Keyboard & PC Blind Operation Support
+        // BLACKBERRY PASSPORT CAPACITIVE PHYSICAL KEYBOARD SWIPE (WHEEL/MOUSEWHEEL ENGINE)
+        // In BB10 WebKit, gliding/swiping fingers across the physical capacitive keyboard
+        // dispatches native scroll/wheel/mousewheel events. We intercept them globally to control
+        // TV navigation without even touching the screen!
+        (function initPassportCapacitiveKeyboardSwipe() {
+            var accumX = 0;
+            var accumY = 0;
+            var lastTriggerTime = 0;
+            var ACCUM_THRESHOLD = 35; // Accumulated delta needed to fire a step
+            var THROTTLE_MS = 220;     // Prevent runaway repeat
+
+            function handleScrollDelta(dx, dy, e) {
+                if (e && e.preventDefault) {
+                    e.preventDefault();
+                }
+
+                accumX += dx;
+                accumY += dy;
+
+                var now = new Date().getTime();
+                if (now - lastTriggerTime < THROTTLE_MS) {
+                    return;
+                }
+
+                // Check vertical swipe first
+                if (Math.abs(accumY) >= ACCUM_THRESHOLD && Math.abs(accumY) >= Math.abs(accumX)) {
+                    if (accumY > 0) {
+                        // Swiping finger DOWN on keyboard scrolls content down -> send TV DOWN (33)
+                        flashDirection('down');
+                        sendAction('key', '33', 'l2700');
+                    } else {
+                        // Swiping finger UP on keyboard scrolls content up -> send TV UP (32)
+                        flashDirection('up');
+                        sendAction('key', '32', 'l2700');
+                    }
+                    accumX = 0;
+                    accumY = 0;
+                    lastTriggerTime = now;
+                }
+                // Check horizontal swipe
+                else if (Math.abs(accumX) >= ACCUM_THRESHOLD) {
+                    if (accumX > 0) {
+                        // Swiping finger RIGHT on keyboard -> send TV RIGHT (16)
+                        flashDirection('right');
+                        sendAction('key', '16', 'l2700');
+                    } else {
+                        // Swiping finger LEFT on keyboard -> send TV LEFT (17)
+                        flashDirection('left');
+                        sendAction('key', '17', 'l2700');
+                    }
+                    accumX = 0;
+                    accumY = 0;
+                    lastTriggerTime = now;
+                }
+            }
+
+            // Standard W3C wheel event (modern WebKit)
+            window.addEventListener('wheel', function(e) {
+                var dx = e.deltaX || 0;
+                var dy = e.deltaY || 0;
+                handleScrollDelta(dx, dy, e);
+            }, { passive: false });
+
+            // Legacy WebKit mousewheel event (older BB10 WebKit engine)
+            window.addEventListener('mousewheel', function(e) {
+                var dx = -(e.wheelDeltaX || 0) / 40;
+                var dy = -(e.wheelDeltaY || (e.wheelDelta || 0)) / 40;
+                handleScrollDelta(dx, dy, e);
+            }, { passive: false });
+        })();
+
+        // BlackBerry Passport Physical Keyboard Press Handler (PC / Blind Backup)
         (function initKeyboardHandler() {
             window.addEventListener('keydown', function(e) {
                 var key = e.key ? e.key.toLowerCase() : '';
@@ -619,18 +707,25 @@ HTML_CONTENT = """<!DOCTYPE html>
 
                 // Handle Navigation
                 if (key === 'arrowup' || key === 'w' || keyCode === 38) {
+                    flashDirection('up');
                     sendAction('key', '32', 'l2700'); // Up
                     e.preventDefault();
                 } else if (key === 'arrowdown' || key === 's' || keyCode === 40) {
+                    flashDirection('down');
                     sendAction('key', '33', 'l2700'); // Down
                     e.preventDefault();
                 } else if (key === 'arrowleft' || key === 'a' || keyCode === 37) {
+                    flashDirection('left');
                     sendAction('key', '17', 'l2700'); // Left
                     e.preventDefault();
                 } else if (key === 'arrowright' || key === 'd' || keyCode === 39) {
+                    flashDirection('right');
                     sendAction('key', '16', 'l2700'); // Right
                     e.preventDefault();
                 } else if (key === 'enter' || key === ' ' || keyCode === 13 || keyCode === 32) {
+                    var disc = document.getElementById('center-disc');
+                    disc.className = 'center-button pressed';
+                    setTimeout(function() { disc.className = 'center-button'; }, 180);
                     sendAction('key', '38', 'l2700'); // OK
                     e.preventDefault();
                 } else if (key === 'escape' || key === 'backspace' || key === 'b' || keyCode === 8 || keyCode === 27) {
