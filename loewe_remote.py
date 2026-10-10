@@ -201,6 +201,28 @@ HTML_CONTENT = """<!DOCTYPE html>
             transform: scale(0.985);
         }
 
+        /* Interactive Virtual Cursor / Finger Tracker Disc */
+        .touch-puck {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 0 14px rgba(255, 255, 255, 0.8), 0 0 24px rgba(96, 165, 250, 0.6);
+            pointer-events: none;
+            opacity: 0;
+            -webkit-transform: translate3d(-50%, -50%, 0) scale(0.5);
+            transform: translate3d(-50%, -50%, 0) scale(0.5);
+            transition: opacity 0.25s, transform 0.08s ease-out;
+            z-index: 10;
+        }
+
+        .touch-puck.visible {
+            opacity: 0.95;
+            -webkit-transform: translate3d(-50%, -50%, 0) scale(1);
+            transform: translate3d(-50%, -50%, 0) scale(1);
+        }
+
         /* Directional Indicators on the Clickpad Ring */
         .arrow-hint {
             position: absolute;
@@ -240,6 +262,7 @@ HTML_CONTENT = """<!DOCTYPE html>
             justify-content: center;
             pointer-events: none;
             transition: transform 0.1s, background 0.15s;
+            z-index: 5;
         }
 
         .center-label {
@@ -423,6 +446,9 @@ HTML_CONTENT = """<!DOCTYPE html>
                 <span id="hint-left" class="arrow-hint hint-left">&#9664;</span>
                 <span id="hint-right" class="arrow-hint hint-right">&#9654;</span>
 
+                <!-- Virtual Cursor / Finger Tracker Disc -->
+                <div id="touch-puck" class="touch-puck"></div>
+
                 <div id="center-disc" class="center-button">
                     <span class="center-label">OK</span>
                     <span class="center-sublabel">TAP / SWIPE</span>
@@ -494,13 +520,11 @@ HTML_CONTENT = """<!DOCTYPE html>
         var tvOnline = false;
 
         // CRITICAL FOR BB10: Lock global page viewport movement permanently
-        // In BB10 WebKit, passing boolean 'false' instead of modern option object
         window.addEventListener('scroll', function() {
             window.scrollTo(0, 0);
         }, false);
 
         document.addEventListener('touchmove', function(e) {
-            // Prevent viewport scrolling/bouncing unless interacting directly with clickpad
             e.preventDefault();
         }, false);
 
@@ -511,7 +535,47 @@ HTML_CONTENT = """<!DOCTYPE html>
                 el.className = 'arrow-hint hint-' + dir + ' active';
                 setTimeout(function() {
                     el.className = 'arrow-hint hint-' + dir;
-                }, 220);
+                }, 240);
+            }
+        }
+
+        // Virtual Puck / Cursor position updater
+        var puckEl = document.getElementById('touch-puck');
+        var puckHideTimer = null;
+
+        function updateCursor(relX, relY, show) {
+            if (!puckEl) return;
+            var pad = document.getElementById('touchpad');
+            if (!pad) return;
+
+            var rect = pad.getBoundingClientRect();
+            var radius = rect.width / 2;
+
+            // Clamp inside circular touchpad area
+            var dist = Math.sqrt(relX * relX + relY * relY);
+            var maxR = radius - 16;
+            if (dist > maxR && dist > 0) {
+                relX = (relX / dist) * maxR;
+                relY = (relY / dist) * maxR;
+            }
+
+            var posX = radius + relX;
+            var posY = radius + relY;
+
+            puckEl.style.left = posX + 'px';
+            puckEl.style.top = posY + 'px';
+
+            if (show) {
+                puckEl.className = 'touch-puck visible';
+                if (puckHideTimer) clearTimeout(puckHideTimer);
+                puckHideTimer = setTimeout(function() {
+                    // Smoothly recenter and fade out
+                    puckEl.style.left = radius + 'px';
+                    puckEl.style.top = radius + 'px';
+                    puckEl.className = 'touch-puck';
+                }, 400);
+            } else {
+                puckEl.className = 'touch-puck';
             }
         }
 
@@ -605,12 +669,18 @@ HTML_CONTENT = """<!DOCTYPE html>
                 startTime = new Date().getTime();
                 pad.className = 'touchpad active';
                 disc.className = 'center-button pressed';
+
+                var rect = pad.getBoundingClientRect();
+                updateCursor(x - rect.left - rect.width / 2, y - rect.top - rect.height / 2, true);
             }
 
             function handleMove(x, y, evt) {
                 if (!isTracking) return;
                 var dx = x - startX;
                 var dy = y - startY;
+
+                var rect = pad.getBoundingClientRect();
+                updateCursor(x - rect.left - rect.width / 2, y - rect.top - rect.height / 2, true);
 
                 if (!hasSwiped) {
                     if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD) {
@@ -685,15 +755,14 @@ HTML_CONTENT = """<!DOCTYPE html>
         })();
 
         // BLACKBERRY PASSPORT CAPACITIVE PHYSICAL KEYBOARD SWIPE (WHEEL/MOUSEWHEEL ENGINE)
-        // In BB10 WebKit, gliding/swiping fingers across the physical capacitive keyboard
-        // dispatches native scroll/wheel/mousewheel events. We intercept them globally to control
-        // TV navigation without moving the page viewport.
+        // In BB10 WebKit, gliding fingers across the physical capacitive keyboard dispatches scroll events.
+        // We project the finger movement directly onto the on-screen Puck cursor!
         (function initPassportCapacitiveKeyboardSwipe() {
-            var accumX = 0;
-            var accumY = 0;
+            var curPuckX = 0;
+            var curPuckY = 0;
             var lastTriggerTime = 0;
-            var ACCUM_THRESHOLD = 20; // Lowered threshold for responsive key glide
-            var THROTTLE_MS = 200;
+            var ACCUM_THRESHOLD = 22; // Accumulated delta needed to fire a step
+            var THROTTLE_MS = 220;
 
             function handleScrollDelta(dx, dy, e) {
                 if (e && e.preventDefault) {
@@ -703,8 +772,17 @@ HTML_CONTENT = """<!DOCTYPE html>
                     e.stopPropagation();
                 }
 
-                accumX += dx;
-                accumY += dy;
+                // Smoothly push cursor in real-time matching finger gliding direction
+                curPuckX += dx * 1.5;
+                curPuckY += dy * 1.5;
+
+                // Clamp puck inside pad
+                if (curPuckX > 75) curPuckX = 75;
+                if (curPuckX < -75) curPuckX = -75;
+                if (curPuckY > 75) curPuckY = 75;
+                if (curPuckY < -75) curPuckY = -75;
+
+                updateCursor(curPuckX, curPuckY, true);
 
                 var now = new Date().getTime();
                 if (now - lastTriggerTime < THROTTLE_MS) {
@@ -712,8 +790,8 @@ HTML_CONTENT = """<!DOCTYPE html>
                 }
 
                 // Check vertical swipe first
-                if (Math.abs(accumY) >= ACCUM_THRESHOLD && Math.abs(accumY) >= Math.abs(accumX)) {
-                    if (accumY > 0) {
+                if (Math.abs(curPuckY) >= ACCUM_THRESHOLD && Math.abs(curPuckY) >= Math.abs(curPuckX)) {
+                    if (curPuckY > 0) {
                         // Swiping finger DOWN on keyboard -> send TV DOWN (33)
                         flashDirection('down');
                         sendAction('key', '33', 'l2700');
@@ -722,13 +800,13 @@ HTML_CONTENT = """<!DOCTYPE html>
                         flashDirection('up');
                         sendAction('key', '32', 'l2700');
                     }
-                    accumX = 0;
-                    accumY = 0;
+                    curPuckX = 0;
+                    curPuckY = 0;
                     lastTriggerTime = now;
                 }
                 // Check horizontal swipe
-                else if (Math.abs(accumX) >= ACCUM_THRESHOLD) {
-                    if (accumX > 0) {
+                else if (Math.abs(curPuckX) >= ACCUM_THRESHOLD) {
+                    if (curPuckX > 0) {
                         // Swiping finger RIGHT on keyboard -> send TV RIGHT (16)
                         flashDirection('right');
                         sendAction('key', '16', 'l2700');
@@ -737,8 +815,8 @@ HTML_CONTENT = """<!DOCTYPE html>
                         flashDirection('left');
                         sendAction('key', '17', 'l2700');
                     }
-                    accumX = 0;
-                    accumY = 0;
+                    curPuckX = 0;
+                    curPuckY = 0;
                     lastTriggerTime = now;
                 }
             }
@@ -756,7 +834,7 @@ HTML_CONTENT = """<!DOCTYPE html>
                 var dy = -(e.wheelDeltaY || (e.wheelDelta || 0)) / 40;
                 handleScrollDelta(dx, dy, e);
             }, false);
-            
+
             document.addEventListener('mousewheel', function(e) {
                 var dx = -(e.wheelDeltaX || 0) / 40;
                 var dy = -(e.wheelDeltaY || (e.wheelDelta || 0)) / 40;
@@ -772,18 +850,22 @@ HTML_CONTENT = """<!DOCTYPE html>
 
                 // Handle Navigation
                 if (key === 'arrowup' || key === 'w' || keyCode === 38) {
+                    updateCursor(0, -60, true);
                     flashDirection('up');
                     sendAction('key', '32', 'l2700'); // Up
                     e.preventDefault();
                 } else if (key === 'arrowdown' || key === 's' || keyCode === 40) {
+                    updateCursor(0, 60, true);
                     flashDirection('down');
                     sendAction('key', '33', 'l2700'); // Down
                     e.preventDefault();
                 } else if (key === 'arrowleft' || key === 'a' || keyCode === 37) {
+                    updateCursor(-60, 0, true);
                     flashDirection('left');
                     sendAction('key', '17', 'l2700'); // Left
                     e.preventDefault();
                 } else if (key === 'arrowright' || key === 'd' || keyCode === 39) {
+                    updateCursor(60, 0, true);
                     flashDirection('right');
                     sendAction('key', '16', 'l2700'); // Right
                     e.preventDefault();
