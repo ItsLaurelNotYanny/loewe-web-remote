@@ -203,33 +203,11 @@ HTML_CONTENT = """<!DOCTYPE html>
             transform: scale(0.985);
         }
 
-        /* Virtual Cursor / Finger Tracker Puck */
-        .touch-puck {
-            position: absolute;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.95);
-            box-shadow: 0 0 16px rgba(255, 255, 255, 0.9), 0 0 30px rgba(96, 165, 250, 0.8);
-            pointer-events: none;
-            opacity: 0;
-            -webkit-transform: translate3d(-50%, -50%, 0) scale(0.5);
-            transform: translate3d(-50%, -50%, 0) scale(0.5);
-            transition: opacity 0.25s, transform 0.08s ease-out;
-            z-index: 10;
-        }
-
-        .touch-puck.visible {
-            opacity: 1;
-            -webkit-transform: translate3d(-50%, -50%, 0) scale(1);
-            transform: translate3d(-50%, -50%, 0) scale(1);
-        }
-
         /* Directional Indicators on the Clickpad Ring */
         .arrow-hint {
             position: absolute;
             color: rgba(255, 255, 255, 0.3);
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 800;
             pointer-events: none;
             transition: color 0.15s, transform 0.15s;
@@ -240,9 +218,9 @@ HTML_CONTENT = """<!DOCTYPE html>
         .arrow-hint.hint-right { right: 10px; }
 
         .arrow-hint.active {
-            color: #ffffff;
-            -webkit-transform: scale(1.35);
-            transform: scale(1.35);
+            color: #60a5fa;
+            -webkit-transform: scale(1.4);
+            transform: scale(1.4);
         }
 
         /* Inner Center OK Disc */
@@ -262,9 +240,10 @@ HTML_CONTENT = """<!DOCTYPE html>
             align-items: center;
             -webkit-justify-content: center;
             justify-content: center;
-            pointer-events: none;
+            cursor: pointer;
             transition: transform 0.1s, background 0.15s;
             z-index: 5;
+            pointer-events: auto; /* Dedicated clickable button */
         }
 
         .center-label {
@@ -272,6 +251,7 @@ HTML_CONTENT = """<!DOCTYPE html>
             font-weight: 700;
             letter-spacing: 1.5px;
             color: #ffffff;
+            pointer-events: none;
         }
 
         .center-sublabel {
@@ -280,12 +260,14 @@ HTML_CONTENT = """<!DOCTYPE html>
             letter-spacing: 0.5px;
             margin-top: 1px;
             text-transform: uppercase;
+            pointer-events: none;
         }
 
-        .center-button.pressed {
+        .center-button:active, .center-button.pressed {
             -webkit-transform: scale(0.92);
             transform: scale(0.92);
             background: #353640;
+            border-color: #60a5fa;
         }
 
         /* Lower Section: 2-Column Physical Style Buttons (Flexbox for 100% BB10 compatibility) */
@@ -376,10 +358,10 @@ HTML_CONTENT = """<!DOCTYPE html>
 
         /* Passport Capacitive Keyboard Banner */
         .keyboard-hint {
-            font-size: 0.7rem;
+            font-size: 0.72rem;
             color: #86868b;
             text-align: center;
-            line-height: 1.3;
+            line-height: 1.35;
             padding: 0 4px;
         }
 
@@ -393,26 +375,8 @@ HTML_CONTENT = """<!DOCTYPE html>
             border-radius: 4px;
             padding: 1px 4px;
             font-family: monospace;
-            font-size: 0.7rem;
+            font-size: 0.72rem;
             color: #d1d1d6;
-        }
-
-        /* Invisible Focus Trap / Scroll Bridge for BlackBerry 10 OS */
-        /* BB10 requires a focusable scrollable context to dispatch keyboard scroll gestures */
-        #bb10-scroll-sensor {
-            position: absolute;
-            width: 100px;
-            height: 100px;
-            overflow: scroll;
-            opacity: 0.001;
-            pointer-events: none;
-            z-index: 1;
-            top: 0;
-            left: 0;
-        }
-        #bb10-scroll-content {
-            width: 300px;
-            height: 300px;
         }
 
         /* Responsive Compact adaptation for 1440x1440 Passport square */
@@ -448,11 +412,6 @@ HTML_CONTENT = """<!DOCTYPE html>
     </style>
 </head>
 <body>
-    <!-- BB10 Capacitive Keyboard Gesture Sensor -->
-    <div id="bb10-scroll-sensor" tabindex="0">
-        <div id="bb10-scroll-content"></div>
-    </div>
-
     <main class="remote-frame" role="region" aria-label="Loewe Apple TV Style Remote">
         <!-- Top Status Bar -->
         <header class="header">
@@ -465,18 +424,16 @@ HTML_CONTENT = """<!DOCTYPE html>
 
         <!-- Siri Remote Gesture Touchpad / Clickpad -->
         <section class="clickpad-wrapper" aria-label="Touch Navigation Area">
-            <div id="touchpad" class="touchpad" role="button" tabindex="0" aria-label="Navigation Touchpad">
+            <div id="touchpad" class="touchpad" role="region" aria-label="Navigation Touchpad">
                 <span id="hint-up" class="arrow-hint hint-up">&#9650;</span>
                 <span id="hint-down" class="arrow-hint hint-down">&#9660;</span>
                 <span id="hint-left" class="arrow-hint hint-left">&#9664;</span>
                 <span id="hint-right" class="arrow-hint hint-right">&#9654;</span>
 
-                <!-- Virtual Cursor / Finger Tracker Disc -->
-                <div id="touch-puck" class="touch-puck"></div>
-
-                <div id="center-disc" class="center-button">
+                <!-- Center OK Button (Strictly isolated tap target) -->
+                <div id="center-disc" class="center-button" role="button" aria-label="OK Confirm">
                     <span class="center-label">OK</span>
-                    <span class="center-sublabel">TAP / SWIPE</span>
+                    <span class="center-sublabel">PRESS</span>
                 </div>
             </div>
         </section>
@@ -551,46 +508,7 @@ HTML_CONTENT = """<!DOCTYPE html>
                 el.className = 'arrow-hint hint-' + dir + ' active';
                 setTimeout(function() {
                     el.className = 'arrow-hint hint-' + dir;
-                }, 240);
-            }
-        }
-
-        // Virtual Puck / Cursor position updater
-        var puckEl = document.getElementById('touch-puck');
-        var puckHideTimer = null;
-
-        function updateCursor(relX, relY, show) {
-            if (!puckEl) return;
-            var pad = document.getElementById('touchpad');
-            if (!pad) return;
-
-            var rect = pad.getBoundingClientRect();
-            var radius = rect.width / 2;
-
-            // Clamp inside circular touchpad area
-            var dist = Math.sqrt(relX * relX + relY * relY);
-            var maxR = radius - 16;
-            if (dist > maxR && dist > 0) {
-                relX = (relX / dist) * maxR;
-                relY = (relY / dist) * maxR;
-            }
-
-            var posX = radius + relX;
-            var posY = radius + relY;
-
-            puckEl.style.left = posX + 'px';
-            puckEl.style.top = posY + 'px';
-
-            if (show) {
-                puckEl.className = 'touch-puck visible';
-                if (puckHideTimer) clearTimeout(puckHideTimer);
-                puckHideTimer = setTimeout(function() {
-                    puckEl.style.left = radius + 'px';
-                    puckEl.style.top = radius + 'px';
-                    puckEl.className = 'touch-puck';
-                }, 350);
-            } else {
-                puckEl.className = 'touch-puck';
+                }, 220);
             }
         }
 
@@ -654,39 +572,40 @@ HTML_CONTENT = """<!DOCTYPE html>
             });
         }
 
-        // Touchpad Gestures on Screen: Tap for OK, Swipe for Up/Down/Left/Right
-        (function initTouchpad() {
-            var pad = document.getElementById('touchpad');
+        // 1. ISOLATED CENTER OK BUTTON (Explicit Click Only)
+        // Never triggers accidentally on swipes or keydown!
+        (function initCenterOkButton() {
             var disc = document.getElementById('center-disc');
-            var hintUp = document.getElementById('hint-up');
-            var hintDown = document.getElementById('hint-down');
-            var hintLeft = document.getElementById('hint-left');
-            var hintRight = document.getElementById('hint-right');
+            if (!disc) return;
 
-            var startX = 0, startY = 0;
-            var startTime = 0;
-            var isTracking = false;
-            var hasSwiped = false;
-            var SWIPE_THRESHOLD = 26; // pixels
-
-            function clearHints() {
-                hintUp.className = 'arrow-hint hint-up';
-                hintDown.className = 'arrow-hint hint-down';
-                hintLeft.className = 'arrow-hint hint-left';
-                hintRight.className = 'arrow-hint hint-right';
+            function triggerOk(e) {
+                if (e && e.stopPropagation) e.stopPropagation();
+                if (e && e.preventDefault) e.preventDefault();
+                disc.className = 'center-button pressed';
+                setTimeout(function() { disc.className = 'center-button'; }, 180);
+                sendAction('key', '38', 'l2700'); // OK Confirm
             }
 
-            function handleStart(x, y) {
+            disc.addEventListener('click', triggerOk, false);
+            disc.addEventListener('touchend', triggerOk, false);
+        })();
+
+        // 2. TOUCHPAD GESTURES (Strictly Swipe Only - NEVER Fires OK)
+        (function initTouchpad() {
+            var pad = document.getElementById('touchpad');
+            var startX = 0, startY = 0;
+            var isTracking = false;
+            var SWIPE_THRESHOLD = 26; // pixels
+
+            function handleStart(x, y, target) {
+                // If touching the center disc, let center disc handler take care of OK
+                if (target && (target.id === 'center-disc' || target.parentElement.id === 'center-disc')) {
+                    return;
+                }
                 isTracking = true;
-                hasSwiped = false;
                 startX = x;
                 startY = y;
-                startTime = new Date().getTime();
                 pad.className = 'touchpad active';
-                disc.className = 'center-button pressed';
-
-                var rect = pad.getBoundingClientRect();
-                updateCursor(x - rect.left - rect.width / 2, y - rect.top - rect.height / 2, true);
             }
 
             function handleMove(x, y, evt) {
@@ -694,57 +613,40 @@ HTML_CONTENT = """<!DOCTYPE html>
                 var dx = x - startX;
                 var dy = y - startY;
 
-                var rect = pad.getBoundingClientRect();
-                updateCursor(x - rect.left - rect.width / 2, y - rect.top - rect.height / 2, true);
+                if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD) {
+                    isTracking = false; // Only fire once per swipe stroke!
+                    if (evt && evt.preventDefault) evt.preventDefault();
 
-                if (!hasSwiped) {
-                    if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD) {
-                        hasSwiped = true;
-                        if (evt && evt.preventDefault) evt.preventDefault();
-
-                        if (Math.abs(dx) > Math.abs(dy)) {
-                            if (dx > 0) {
-                                // Swipe Right -> Key 16
-                                hintRight.className = 'arrow-hint hint-right active';
-                                sendAction('key', '16', 'l2700');
-                            } else {
-                                // Swipe Left -> Key 17
-                                hintLeft.className = 'arrow-hint hint-left active';
-                                sendAction('key', '17', 'l2700');
-                            }
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        if (dx > 0) {
+                            flashDirection('right');
+                            sendAction('key', '16', 'l2700'); // Right
                         } else {
-                            if (dy > 0) {
-                                // Swipe Down -> Key 33
-                                hintDown.className = 'arrow-hint hint-down active';
-                                sendAction('key', '33', 'l2700');
-                            } else {
-                                // Swipe Up -> Key 32
-                                hintUp.className = 'arrow-hint hint-up active';
-                                sendAction('key', '32', 'l2700');
-                            }
+                            flashDirection('left');
+                            sendAction('key', '17', 'l2700'); // Left
+                        }
+                    } else {
+                        if (dy > 0) {
+                            flashDirection('down');
+                            sendAction('key', '33', 'l2700'); // Down
+                        } else {
+                            flashDirection('up');
+                            sendAction('key', '32', 'l2700'); // Up
                         }
                     }
                 }
             }
 
             function handleEnd() {
-                if (!isTracking) return;
                 isTracking = false;
                 pad.className = 'touchpad';
-                disc.className = 'center-button';
-                setTimeout(clearHints, 200);
-
-                var elapsed = new Date().getTime() - startTime;
-                if (!hasSwiped && elapsed < 500) {
-                    // Tap -> OK Key 38
-                    sendAction('key', '38', 'l2700');
-                }
+                // CRITICAL FIX: NO TAP TO OK HERE! Swiping area NEVER triggers OK!
             }
 
             // Touch events
             pad.addEventListener('touchstart', function(e) {
                 if (e.touches.length === 1) {
-                    handleStart(e.touches[0].clientX, e.touches[0].clientY);
+                    handleStart(e.touches[0].clientX, e.touches[0].clientY, e.target);
                 }
             }, false);
 
@@ -754,129 +656,70 @@ HTML_CONTENT = """<!DOCTYPE html>
                 }
             }, false);
 
-            pad.addEventListener('touchend', function() { handleEnd(); }, false);
-            pad.addEventListener('touchcancel', function() { handleEnd(); }, false);
+            pad.addEventListener('touchend', handleEnd, false);
+            pad.addEventListener('touchcancel', handleEnd, false);
 
             // Mouse fallback for desktop testing
             pad.addEventListener('mousedown', function(e) {
-                handleStart(e.clientX, e.clientY);
+                handleStart(e.clientX, e.clientY, e.target);
             });
             window.addEventListener('mousemove', function(e) {
-                handleMove(e.clientX, e.clientY);
+                handleMove(e.clientX, e.clientY, e);
             });
-            window.addEventListener('mouseup', function() {
-                handleEnd();
-            });
+            window.addEventListener('mouseup', handleEnd);
         })();
 
-        // BLACKBERRY PASSPORT SCROLL SENSOR BRIDGE (Captures OS-level Keyboard Glides)
-        (function initBB10SensorBridge() {
-            var sensor = document.getElementById('bb10-scroll-sensor');
-            if (!sensor) return;
-
-            var baseScroll = 100;
-            sensor.scrollLeft = baseScroll;
-            sensor.scrollTop = baseScroll;
-
-            var lastScrollTrigger = 0;
-            sensor.addEventListener('scroll', function() {
-                var dx = sensor.scrollLeft - baseScroll;
-                var dy = sensor.scrollTop - baseScroll;
-
-                // Reset position back to center for infinite scrolling
-                sensor.scrollLeft = baseScroll;
-                sensor.scrollTop = baseScroll;
-
-                var now = new Date().getTime();
-                if (now - lastScrollTrigger < 200) return;
-
-                if (Math.abs(dy) >= 12 && Math.abs(dy) >= Math.abs(dx)) {
-                    if (dy > 0) {
-                        updateCursor(0, 50, true);
-                        flashDirection('down');
-                        sendAction('key', '33', 'l2700');
-                    } else {
-                        updateCursor(0, -50, true);
-                        flashDirection('up');
-                        sendAction('key', '32', 'l2700');
-                    }
-                    lastScrollTrigger = now;
-                } else if (Math.abs(dx) >= 12) {
-                    if (dx > 0) {
-                        updateCursor(50, 0, true);
-                        flashDirection('right');
-                        sendAction('key', '16', 'l2700');
-                    } else {
-                        updateCursor(-50, 0, true);
-                        flashDirection('left');
-                        sendAction('key', '17', 'l2700');
-                    }
-                    lastScrollTrigger = now;
-                }
-            }, false);
-
-            // Keep sensor active
-            try { sensor.focus(); } catch (e) {}
-        })();
-
-        // BLACKBERRY PASSPORT PHYSICAL KEYBOARD HANDLER (Capturing Phase: useCapture = true)
-        // Using 'true' as the third argument intercepts the keys during the DOM CAPTURE phase,
-        // BEFORE the browser tries to trigger default actions!
+        // 3. BLACKBERRY PASSPORT PHYSICAL KEYBOARD HANDLER
+        // 100% Pure Discrete Navigation - Zero Accidental OK Injections!
         (function initKeyboardHandler() {
             function handleKeyDown(e) {
                 var keyCode = e.keyCode || e.which;
                 var key = (e.key ? e.key.toLowerCase() : String.fromCharCode(keyCode).toLowerCase());
 
-                // 1. Navigation Keys: W/A/S/D or Arrow keys
+                // 1. Navigation Keys: W/A/S/D or Arrow keys (ONLY Move Cursor, NEVER OK)
                 if (key === 'w' || key === 'arrowup' || keyCode === 38 || keyCode === 87) {
-                    updateCursor(0, -60, true);
                     flashDirection('up');
-                    sendAction('key', '32', 'l2700'); // Up
+                    sendAction('key', '32', 'l2700'); // Up ONLY
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
                 }
                 if (key === 's' || key === 'arrowdown' || keyCode === 40 || keyCode === 83) {
-                    updateCursor(0, 60, true);
                     flashDirection('down');
-                    sendAction('key', '33', 'l2700'); // Down
+                    sendAction('key', '33', 'l2700'); // Down ONLY
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
                 }
                 if (key === 'a' || key === 'arrowleft' || keyCode === 37 || keyCode === 65) {
-                    updateCursor(-60, 0, true);
                     flashDirection('left');
-                    sendAction('key', '17', 'l2700'); // Left
+                    sendAction('key', '17', 'l2700'); // Left ONLY
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
                 }
                 if (key === 'd' || key === 'arrowright' || keyCode === 39 || keyCode === 68) {
-                    updateCursor(60, 0, true);
                     flashDirection('right');
-                    sendAction('key', '16', 'l2700'); // Right
+                    sendAction('key', '16', 'l2700'); // Right ONLY
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
                 }
 
-                // 2. OK Confirm: Enter key (13)
+                // 2. OK Confirm: ONLY Enter Key (13)
                 if (key === 'enter' || keyCode === 13) {
                     var disc = document.getElementById('center-disc');
                     disc.className = 'center-button pressed';
                     setTimeout(function() { disc.className = 'center-button'; }, 180);
-                    sendAction('key', '38', 'l2700'); // OK
+                    sendAction('key', '38', 'l2700'); // OK Confirm
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
                 }
 
                 // 3. HOME (Sources Menu): Space bar (32) or 'I' (73, Info/Home)
-                // (Space & I completely avoid BB10 'H' = History shortcut)
                 if (key === ' ' || key === 'space' || keyCode === 32 || key === 'i' || keyCode === 73) {
-                    updateCursor(0, 0, true);
-                    sendAction('key', '126', 'l2700'); // Home / Sources (Key 126)
+                    sendAction('key', '126', 'l2700'); // Home / Sources
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
@@ -884,7 +727,7 @@ HTML_CONTENT = """<!DOCTYPE html>
 
                 // 4. BACK (Return): Backspace (8), Esc (27), or 'B' (66)
                 if (key === 'backspace' || key === 'escape' || keyCode === 8 || keyCode === 27 || key === 'b' || keyCode === 66) {
-                    sendAction('key', '65', 'l2700'); // Back (Key 65)
+                    sendAction('key', '65', 'l2700'); // Back
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
@@ -892,7 +735,7 @@ HTML_CONTENT = """<!DOCTYPE html>
 
                 // 5. PLAY / PAUSE: 'P' (80)
                 if (key === 'p' || keyCode === 80) {
-                    sendAction('key', '53', 'l2700-hdr'); // Play / Pause (Key 53)
+                    sendAction('key', '53', 'l2700-hdr'); // Play / Pause
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
@@ -900,7 +743,7 @@ HTML_CONTENT = """<!DOCTYPE html>
 
                 // 6. MENU: 'M' (77)
                 if (key === 'm' || keyCode === 77) {
-                    sendAction('key', '11', 'l2700'); // Menu (Key 11)
+                    sendAction('key', '11', 'l2700'); // Menu
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
@@ -921,7 +764,7 @@ HTML_CONTENT = """<!DOCTYPE html>
                 }
             }
 
-            // CRITICAL: useCapture = true intercepts BEFORE browser processes default keys!
+            // Capture phase prioritizes custom handlers before browser default
             window.addEventListener('keydown', handleKeyDown, true);
             document.addEventListener('keydown', handleKeyDown, true);
         })();
