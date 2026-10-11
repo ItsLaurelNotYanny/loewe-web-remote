@@ -80,7 +80,7 @@ HTML_CONTENT = """<!DOCTYPE html>
             align-items: center;
             -webkit-justify-content: center;
             justify-content: center;
-            padding: 10px;
+            padding: 8px;
         }
 
         /* Remote Chassis: Apple TV Siri Remote Aluminum Unibody styling */
@@ -101,6 +101,8 @@ HTML_CONTENT = """<!DOCTYPE html>
             -webkit-align-items: center;
             align-items: center;
             gap: 12px;
+            position: relative;
+            z-index: 2;
         }
 
         /* Top Header: Brand & Status Pill */
@@ -201,14 +203,14 @@ HTML_CONTENT = """<!DOCTYPE html>
             transform: scale(0.985);
         }
 
-        /* Interactive Virtual Cursor / Finger Tracker Disc */
+        /* Virtual Cursor / Finger Tracker Puck */
         .touch-puck {
             position: absolute;
-            width: 24px;
-            height: 24px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.9);
-            box-shadow: 0 0 14px rgba(255, 255, 255, 0.8), 0 0 24px rgba(96, 165, 250, 0.6);
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 0 16px rgba(255, 255, 255, 0.9), 0 0 30px rgba(96, 165, 250, 0.8);
             pointer-events: none;
             opacity: 0;
             -webkit-transform: translate3d(-50%, -50%, 0) scale(0.5);
@@ -218,7 +220,7 @@ HTML_CONTENT = """<!DOCTYPE html>
         }
 
         .touch-puck.visible {
-            opacity: 0.95;
+            opacity: 1;
             -webkit-transform: translate3d(-50%, -50%, 0) scale(1);
             transform: translate3d(-50%, -50%, 0) scale(1);
         }
@@ -395,6 +397,24 @@ HTML_CONTENT = """<!DOCTYPE html>
             color: #d1d1d6;
         }
 
+        /* Invisible Focus Trap / Scroll Bridge for BlackBerry 10 OS */
+        /* BB10 requires a focusable scrollable context to dispatch keyboard scroll gestures */
+        #bb10-scroll-sensor {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            overflow: scroll;
+            opacity: 0.001;
+            pointer-events: none;
+            z-index: 1;
+            top: 0;
+            left: 0;
+        }
+        #bb10-scroll-content {
+            width: 300px;
+            height: 300px;
+        }
+
         /* Responsive Compact adaptation for 1440x1440 Passport square */
         @media (max-height: 700px), (max-width: 380px) {
             body { padding: 4px; }
@@ -428,6 +448,11 @@ HTML_CONTENT = """<!DOCTYPE html>
     </style>
 </head>
 <body>
+    <!-- BB10 Capacitive Keyboard Gesture Sensor -->
+    <div id="bb10-scroll-sensor" tabindex="0">
+        <div id="bb10-scroll-content"></div>
+    </div>
+
     <main class="remote-frame" role="region" aria-label="Loewe Apple TV Style Remote">
         <!-- Top Status Bar -->
         <header class="header">
@@ -509,24 +534,15 @@ HTML_CONTENT = """<!DOCTYPE html>
             </button>
         </section>
 
-        <!-- Physical Keyboard & Capacitive Swipe Indicator -->
+        <!-- Physical Keyboard Shortcuts Hint -->
         <footer class="keyboard-hint">
-            <span class="badge-passport">&#9889; Passport:</span> Glide keyboard to navigate &bull; <kbd>Enter</kbd> OK &bull; <kbd>H</kbd> Home &bull; <kbd>B</kbd> Back
+            <span class="badge-passport">Passport:</span> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> D-Pad &bull; <kbd>Enter</kbd> OK &bull; <kbd>Space</kbd> Home &bull; <kbd>B</kbd> Back &bull; <kbd>P</kbd> Play
         </footer>
     </main>
 
     <script>
         // ES5 Pure JavaScript - 100% compatible with BB10 WebKit and modern smartphones
         var tvOnline = false;
-
-        // CRITICAL FOR BB10: Lock global page viewport movement permanently
-        window.addEventListener('scroll', function() {
-            window.scrollTo(0, 0);
-        }, false);
-
-        document.addEventListener('touchmove', function(e) {
-            e.preventDefault();
-        }, false);
 
         // Visual flash indicator helper for Touchpad hints
         function flashDirection(dir) {
@@ -569,11 +585,10 @@ HTML_CONTENT = """<!DOCTYPE html>
                 puckEl.className = 'touch-puck visible';
                 if (puckHideTimer) clearTimeout(puckHideTimer);
                 puckHideTimer = setTimeout(function() {
-                    // Smoothly recenter and fade out
                     puckEl.style.left = radius + 'px';
                     puckEl.style.top = radius + 'px';
                     puckEl.className = 'touch-puck';
-                }, 400);
+                }, 350);
             } else {
                 puckEl.className = 'touch-puck';
             }
@@ -588,7 +603,7 @@ HTML_CONTENT = """<!DOCTYPE html>
             } catch (e) {}
         }
 
-        // Generic XHR caller (ES5 compliant, avoid fetch API for BB10 WebKit)
+        // Generic XHR caller (ES5 compliant)
         function apiRequest(method, url, callback) {
             var xhr = new XMLHttpRequest();
             xhr.open(method, url, true);
@@ -754,147 +769,161 @@ HTML_CONTENT = """<!DOCTYPE html>
             });
         })();
 
-        // BLACKBERRY PASSPORT CAPACITIVE PHYSICAL KEYBOARD SWIPE (WHEEL/MOUSEWHEEL ENGINE)
-        // In BB10 WebKit, gliding fingers across the physical capacitive keyboard dispatches scroll events.
-        // We project the finger movement directly onto the on-screen Puck cursor!
-        (function initPassportCapacitiveKeyboardSwipe() {
-            var curPuckX = 0;
-            var curPuckY = 0;
-            var lastTriggerTime = 0;
-            var ACCUM_THRESHOLD = 22; // Accumulated delta needed to fire a step
-            var THROTTLE_MS = 220;
+        // BLACKBERRY PASSPORT SCROLL SENSOR BRIDGE (Captures OS-level Keyboard Glides)
+        (function initBB10SensorBridge() {
+            var sensor = document.getElementById('bb10-scroll-sensor');
+            if (!sensor) return;
 
-            function handleScrollDelta(dx, dy, e) {
-                if (e && e.preventDefault) {
-                    e.preventDefault();
-                }
-                if (e && e.stopPropagation) {
-                    e.stopPropagation();
-                }
+            var baseScroll = 100;
+            sensor.scrollLeft = baseScroll;
+            sensor.scrollTop = baseScroll;
 
-                // Smoothly push cursor in real-time matching finger gliding direction
-                curPuckX += dx * 1.5;
-                curPuckY += dy * 1.5;
+            var lastScrollTrigger = 0;
+            sensor.addEventListener('scroll', function() {
+                var dx = sensor.scrollLeft - baseScroll;
+                var dy = sensor.scrollTop - baseScroll;
 
-                // Clamp puck inside pad
-                if (curPuckX > 75) curPuckX = 75;
-                if (curPuckX < -75) curPuckX = -75;
-                if (curPuckY > 75) curPuckY = 75;
-                if (curPuckY < -75) curPuckY = -75;
-
-                updateCursor(curPuckX, curPuckY, true);
+                // Reset position back to center for infinite scrolling
+                sensor.scrollLeft = baseScroll;
+                sensor.scrollTop = baseScroll;
 
                 var now = new Date().getTime();
-                if (now - lastTriggerTime < THROTTLE_MS) {
-                    return;
-                }
+                if (now - lastScrollTrigger < 200) return;
 
-                // Check vertical swipe first
-                if (Math.abs(curPuckY) >= ACCUM_THRESHOLD && Math.abs(curPuckY) >= Math.abs(curPuckX)) {
-                    if (curPuckY > 0) {
-                        // Swiping finger DOWN on keyboard -> send TV DOWN (33)
+                if (Math.abs(dy) >= 12 && Math.abs(dy) >= Math.abs(dx)) {
+                    if (dy > 0) {
+                        updateCursor(0, 50, true);
                         flashDirection('down');
                         sendAction('key', '33', 'l2700');
                     } else {
-                        // Swiping finger UP on keyboard -> send TV UP (32)
+                        updateCursor(0, -50, true);
                         flashDirection('up');
                         sendAction('key', '32', 'l2700');
                     }
-                    curPuckX = 0;
-                    curPuckY = 0;
-                    lastTriggerTime = now;
-                }
-                // Check horizontal swipe
-                else if (Math.abs(curPuckX) >= ACCUM_THRESHOLD) {
-                    if (curPuckX > 0) {
-                        // Swiping finger RIGHT on keyboard -> send TV RIGHT (16)
+                    lastScrollTrigger = now;
+                } else if (Math.abs(dx) >= 12) {
+                    if (dx > 0) {
+                        updateCursor(50, 0, true);
                         flashDirection('right');
                         sendAction('key', '16', 'l2700');
                     } else {
-                        // Swiping finger LEFT on keyboard -> send TV LEFT (17)
+                        updateCursor(-50, 0, true);
                         flashDirection('left');
                         sendAction('key', '17', 'l2700');
                     }
-                    curPuckX = 0;
-                    curPuckY = 0;
-                    lastTriggerTime = now;
+                    lastScrollTrigger = now;
                 }
-            }
-
-            // Standard W3C wheel event - strict boolean false for BB10
-            window.addEventListener('wheel', function(e) {
-                var dx = e.deltaX || 0;
-                var dy = e.deltaY || 0;
-                handleScrollDelta(dx, dy, e);
             }, false);
 
-            // Legacy WebKit mousewheel event
-            window.addEventListener('mousewheel', function(e) {
-                var dx = -(e.wheelDeltaX || 0) / 40;
-                var dy = -(e.wheelDeltaY || (e.wheelDelta || 0)) / 40;
-                handleScrollDelta(dx, dy, e);
-            }, false);
-
-            document.addEventListener('mousewheel', function(e) {
-                var dx = -(e.wheelDeltaX || 0) / 40;
-                var dy = -(e.wheelDeltaY || (e.wheelDelta || 0)) / 40;
-                handleScrollDelta(dx, dy, e);
-            }, false);
+            // Keep sensor active
+            try { sensor.focus(); } catch (e) {}
         })();
 
-        // BlackBerry Passport Physical Keyboard Press Handler (PC / Blind Backup)
+        // BLACKBERRY PASSPORT PHYSICAL KEYBOARD HANDLER (Capturing Phase: useCapture = true)
+        // Using 'true' as the third argument intercepts the keys during the DOM CAPTURE phase,
+        // BEFORE the browser tries to trigger default actions!
         (function initKeyboardHandler() {
-            window.addEventListener('keydown', function(e) {
-                var key = e.key ? e.key.toLowerCase() : '';
+            function handleKeyDown(e) {
                 var keyCode = e.keyCode || e.which;
+                var key = (e.key ? e.key.toLowerCase() : String.fromCharCode(keyCode).toLowerCase());
 
-                // Handle Navigation
-                if (key === 'arrowup' || key === 'w' || keyCode === 38) {
+                // 1. Navigation Keys: W/A/S/D or Arrow keys
+                if (key === 'w' || key === 'arrowup' || keyCode === 38 || keyCode === 87) {
                     updateCursor(0, -60, true);
                     flashDirection('up');
                     sendAction('key', '32', 'l2700'); // Up
                     e.preventDefault();
-                } else if (key === 'arrowdown' || key === 's' || keyCode === 40) {
+                    e.stopPropagation();
+                    return false;
+                }
+                if (key === 's' || key === 'arrowdown' || keyCode === 40 || keyCode === 83) {
                     updateCursor(0, 60, true);
                     flashDirection('down');
                     sendAction('key', '33', 'l2700'); // Down
                     e.preventDefault();
-                } else if (key === 'arrowleft' || key === 'a' || keyCode === 37) {
+                    e.stopPropagation();
+                    return false;
+                }
+                if (key === 'a' || key === 'arrowleft' || keyCode === 37 || keyCode === 65) {
                     updateCursor(-60, 0, true);
                     flashDirection('left');
                     sendAction('key', '17', 'l2700'); // Left
                     e.preventDefault();
-                } else if (key === 'arrowright' || key === 'd' || keyCode === 39) {
+                    e.stopPropagation();
+                    return false;
+                }
+                if (key === 'd' || key === 'arrowright' || keyCode === 39 || keyCode === 68) {
                     updateCursor(60, 0, true);
                     flashDirection('right');
                     sendAction('key', '16', 'l2700'); // Right
                     e.preventDefault();
-                } else if (key === 'enter' || key === ' ' || keyCode === 13 || keyCode === 32) {
+                    e.stopPropagation();
+                    return false;
+                }
+
+                // 2. OK Confirm: Enter key (13)
+                if (key === 'enter' || keyCode === 13) {
                     var disc = document.getElementById('center-disc');
                     disc.className = 'center-button pressed';
                     setTimeout(function() { disc.className = 'center-button'; }, 180);
                     sendAction('key', '38', 'l2700'); // OK
                     e.preventDefault();
-                } else if (key === 'escape' || key === 'backspace' || key === 'b' || keyCode === 8 || keyCode === 27) {
-                    sendAction('key', '65', 'l2700'); // Back
+                    e.stopPropagation();
+                    return false;
+                }
+
+                // 3. HOME (Sources Menu): Space bar (32) or 'I' (73, Info/Home)
+                // (Space & I completely avoid BB10 'H' = History shortcut)
+                if (key === ' ' || key === 'space' || keyCode === 32 || key === 'i' || keyCode === 73) {
+                    updateCursor(0, 0, true);
+                    sendAction('key', '126', 'l2700'); // Home / Sources (Key 126)
                     e.preventDefault();
-                } else if (key === 'h') {
-                    sendAction('key', '126', 'l2700'); // Home / Sources
+                    e.stopPropagation();
+                    return false;
+                }
+
+                // 4. BACK (Return): Backspace (8), Esc (27), or 'B' (66)
+                if (key === 'backspace' || key === 'escape' || keyCode === 8 || keyCode === 27 || key === 'b' || keyCode === 66) {
+                    sendAction('key', '65', 'l2700'); // Back (Key 65)
                     e.preventDefault();
-                } else if (key === 'm') {
-                    sendAction('key', '11', 'l2700'); // Menu
+                    e.stopPropagation();
+                    return false;
+                }
+
+                // 5. PLAY / PAUSE: 'P' (80)
+                if (key === 'p' || keyCode === 80) {
+                    sendAction('key', '53', 'l2700-hdr'); // Play / Pause (Key 53)
                     e.preventDefault();
-                } else if (key === 'p') {
-                    sendAction('key', '53', 'l2700-hdr'); // Play / Pause
+                    e.stopPropagation();
+                    return false;
+                }
+
+                // 6. MENU: 'M' (77)
+                if (key === 'm' || keyCode === 77) {
+                    sendAction('key', '11', 'l2700'); // Menu (Key 11)
                     e.preventDefault();
-                } else if (key === '+' || key === '=') {
+                    e.stopPropagation();
+                    return false;
+                }
+
+                // 7. VOLUME: '+' / '-'
+                if (key === '+' || key === '=' || keyCode === 187 || keyCode === 61) {
                     sendAction('key', '21', 'l2700'); // Vol +
                     e.preventDefault();
-                } else if (key === '-' || key === '_') {
+                    e.stopPropagation();
+                    return false;
+                }
+                if (key === '-' || key === '_' || keyCode === 189 || keyCode === 173) {
                     sendAction('key', '20', 'l2700'); // Vol -
                     e.preventDefault();
+                    e.stopPropagation();
+                    return false;
                 }
-            }, false);
+            }
+
+            // CRITICAL: useCapture = true intercepts BEFORE browser processes default keys!
+            window.addEventListener('keydown', handleKeyDown, true);
+            document.addEventListener('keydown', handleKeyDown, true);
         })();
 
         // Polling loop for TV online status (every 4 seconds)
