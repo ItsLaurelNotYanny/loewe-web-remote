@@ -1,4 +1,4 @@
-//! Modern Minimalist Web Remote for Loewe TV (Apple TV Siri Remote Style)
+//! Precision Web Remote for Loewe TV
 //! Single-binary web server written in Rust with embedded HTML/CSS/JS frontend.
 
 use axum::{

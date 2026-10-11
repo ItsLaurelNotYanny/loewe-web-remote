@@ -1,17 +1,17 @@
-# Loewe Modern Minimalist Web Remote (Apple TV Siri Remote Style)
+# Loewe Precision Web Remote
 
-A high-performance, modern, minimalist web remote control for Loewe OLED/LED TVs (chassis SL520, SL4xx, SL3xx), styled after the Apple TV Siri Remote experience.
+A high-performance, minimalist web remote control for Loewe OLED/LED TVs (chassis SL520, SL4xx, SL3xx) built with classical tactile aesthetics.
 
 Designed with dual-tier device support:
-1. **Modern Touchscreens**: Full Apple TV Clickpad experience with swipe gestures, center tap, and haptic vibration feedback.
-2. **BlackBerry Passport (BB10 WebKit)**: Full support for the 1:1 square display (1440x1440), ES5 XMLHttpRequest compatibility, and physical capacitive keyboard blind navigation.
+1. **Modern Touchscreens**: Classical high-contrast physical D-Pad cross cluster with isolated center OK button, crisp visual active states, and native haptic vibration feedback.
+2. **BlackBerry Passport (BB10 WebKit)**: Full support for the 1:1 square display (1440x1440), ES5 XMLHttpRequest compatibility, and physical hardware keyboard navigation without accidental confirmation triggers.
 
 ---
 
 ## 1. Key Features & Design
 
-- **Apple TV Siri Remote Layout**:
-  - **Upper Section**: Precision circular Touchpad supporting 4-way swipe navigation (Up, Down, Left, Right) and center-disc tap for OK confirmation.
+- **Classical High-Precision Physical D-Pad Cross Cluster**:
+  - **Upper Section**: Tactile cross cluster with discrete `UP`, `DOWN`, `LEFT`, `RIGHT`, and an isolated central `OK` button. Navigation strictly emits direction codes without firing accidental confirmations.
   - **Lower Section**: Minimalist physical-style button grid with the essential golden keys:
     - `BACK` (Code 65)
     - `HOME` (Code 126, Sources & Main Hub)
@@ -21,15 +21,16 @@ Designed with dual-tier device support:
     - `MUTE` (Code 13)
     - `WAKE` (UDP Port 9 Wake-on-LAN)
     - `STANDBY` (Code 12, Soft Standby preserving Wi-Fi)
-- **BlackBerry Passport Physical Blind Navigation**:
+- **BlackBerry Passport Tactile Hardware Keyboard Navigation**:
   - Full keyboard mapping enables blind operation without touching the screen:
-    - `W` / `S` / `A` / `D` or Arrow Keys: Directional navigation
-    - `Enter` / `Space`: OK confirmation
+    - `W` / `S` / `A` / `D` or Arrow Keys: Directional navigation (UP/DOWN/LEFT/RIGHT)
+    - `Enter`: OK confirmation (exclusively fires OK, no overlap with direction keys)
+    - `Space`: Home / Sources menu (mapped to Space to avoid BB10 browser's reserved `H` = History shortcut)
     - `B` / `Backspace` / `Esc`: Back
-    - `H`: Home / Sources
-    - `M`: Menu
     - `P`: Play / Pause toggle
+    - `M`: Menu
     - `+` / `-`: Volume control
+  - **On-Screen Flash Feedback**: Pressing hardware keys lights up the corresponding on-screen buttons for instant visual confirmation.
 - **Self-Healing Session State**:
   - Communicates over Loewe SOAP protocol (`urn:loewe.de:RemoteTV:Tablet`).
   - Automatically executes `RequestAccess` handshake upon token expiration or TV reboot.
@@ -42,15 +43,15 @@ Designed with dual-tier device support:
 
 ## 2. Remote Key Specifications
 
-| Action | Alphabet | Value | Protocol | Note |
+| Action | Alphabet | Value | Protocol | Note / Passport Key |
 |---|---|---|---|---|
-| **UP** | `l2700` | `32` | SOAP InjectRCKey | Touchpad Swipe Up / `W` |
-| **DOWN** | `l2700` | `33` | SOAP InjectRCKey | Touchpad Swipe Down / `S` |
-| **LEFT** | `l2700` | `17` | SOAP InjectRCKey | Touchpad Swipe Left / `A` |
-| **RIGHT** | `l2700` | `16` | SOAP InjectRCKey | Touchpad Swipe Right / `D` |
-| **OK** | `l2700` | `38` | SOAP InjectRCKey | Touchpad Tap / `Enter` |
-| **BACK** | `l2700` | `65` | SOAP InjectRCKey | Return / `B` |
-| **HOME** | `l2700` | `126` | SOAP InjectRCKey | Sources & System Hub / `H` |
+| **UP** | `l2700` | `32` | SOAP InjectRCKey | D-Pad Up / `W` |
+| **DOWN** | `l2700` | `33` | SOAP InjectRCKey | D-Pad Down / `S` |
+| **LEFT** | `l2700` | `17` | SOAP InjectRCKey | D-Pad Left / `A` |
+| **RIGHT** | `l2700` | `16` | SOAP InjectRCKey | D-Pad Right / `D` |
+| **OK** | `l2700` | `38` | SOAP InjectRCKey | Center D-Pad / `Enter` |
+| **BACK** | `l2700` | `65` | SOAP InjectRCKey | Return / `B` / `Backspace` |
+| **HOME** | `l2700` | `126` | SOAP InjectRCKey | Sources & System Hub / `Space` |
 | **PLAY/PAUSE** | `l2700-hdr` | `53` | SOAP InjectRCKey | Playback Toggle / `P` |
 | **MENU** | `l2700` | `11` | SOAP InjectRCKey | System Settings / `M` |
 | **VOL+** | `l2700` | `21` | SOAP InjectRCKey | Volume Increase / `+` |

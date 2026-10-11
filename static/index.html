@@ -28,8 +28,7 @@
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
             user-select: none;
             -webkit-user-select: none;
-            touch-action: none;
-            -webkit-touch-callout: none;
+            touch-action: manipulation;
         }
 
         body {
@@ -44,16 +43,16 @@
             padding: 8px;
         }
 
-        /* Remote Chassis: Apple TV Siri Remote Aluminum Unibody styling */
+        /* Remote Chassis: High Contrast, Solid Tactile Feel */
         .remote-frame {
             width: 100%;
             max-width: 360px;
             max-height: 98vh;
-            background: #17181c;
-            background: linear-gradient(180deg, #1f2025 0%, #151619 100%);
+            background: #16171b;
+            background: linear-gradient(180deg, #1d1e23 0%, #131417 100%);
             border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 40px;
-            padding: 16px 18px 18px 18px;
+            border-radius: 36px;
+            padding: 16px 16px 18px 16px;
             box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
             display: -webkit-flex;
             display: flex;
@@ -62,8 +61,6 @@
             -webkit-align-items: center;
             align-items: center;
             gap: 12px;
-            position: relative;
-            z-index: 2;
         }
 
         /* Top Header: Brand & Status Pill */
@@ -126,109 +123,75 @@
             background: #ff453a;
         }
 
-        /* Upper Section: Siri Remote Clickpad / Touch Surface */
-        .clickpad-wrapper {
-            position: relative;
-            width: 210px;
-            height: 210px;
-            margin: 0;
-            flex-shrink: 0;
-        }
-
-        .touchpad {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            border-radius: 50%;
-            background: #222329;
-            background: radial-gradient(circle at 50% 35%, #2a2b32 0%, #1e1f24 100%);
-            border: 2px solid #33343d;
-            box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.6), 0 6px 18px rgba(0, 0, 0, 0.4);
-            cursor: pointer;
-            touch-action: none;
-            display: -webkit-flex;
-            display: flex;
-            -webkit-align-items: center;
-            align-items: center;
-            -webkit-justify-content: center;
-            justify-content: center;
-            overflow: hidden;
-            transition: border-color 0.15s, background-color 0.15s, transform 0.1s;
-        }
-
-        .touchpad:active, .touchpad.active {
-            border-color: #555765;
-            -webkit-transform: scale(0.985);
-            transform: scale(0.985);
-        }
-
-        /* Directional Indicators on the Clickpad Ring */
-        .arrow-hint {
-            position: absolute;
-            color: rgba(255, 255, 255, 0.3);
-            font-size: 14px;
-            font-weight: 800;
-            pointer-events: none;
-            transition: color 0.15s, transform 0.15s;
-        }
-        .arrow-hint.hint-up    { top: 8px; }
-        .arrow-hint.hint-down  { bottom: 8px; }
-        .arrow-hint.hint-left  { left: 10px; }
-        .arrow-hint.hint-right { right: 10px; }
-
-        .arrow-hint.active {
-            color: #60a5fa;
-            -webkit-transform: scale(1.4);
-            transform: scale(1.4);
-        }
-
-        /* Inner Center OK Disc */
-        .center-button {
-            width: 82px;
-            height: 82px;
-            border-radius: 50%;
-            background: #222329;
-            background: linear-gradient(145deg, #282930, #1c1d22);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        /* Classical Physical D-Pad Cross Cluster */
+        .dpad-cluster {
             display: -webkit-flex;
             display: flex;
             -webkit-flex-direction: column;
             flex-direction: column;
             -webkit-align-items: center;
             align-items: center;
+            gap: 8px;
+            margin: 2px 0;
+            background: #1c1d22;
+            padding: 12px 14px;
+            border-radius: 28px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+        }
+
+        .dpad-row {
+            display: -webkit-flex;
+            display: flex;
+            -webkit-align-items: center;
+            align-items: center;
+            gap: 8px;
+            -webkit-justify-content: center;
+            justify-content: center;
+        }
+
+        .dpad-btn {
+            width: 78px;
+            height: 58px;
+            background: #25262d;
+            color: #f5f5f7;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-align-items: center;
+            align-items: center;
             -webkit-justify-content: center;
             justify-content: center;
             cursor: pointer;
-            transition: transform 0.1s, background 0.15s;
-            z-index: 5;
-            pointer-events: auto; /* Dedicated clickable button */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+            transition: background 0.1s, transform 0.08s;
+            touch-action: manipulation;
         }
 
-        .center-label {
-            font-size: 0.95rem;
-            font-weight: 700;
-            letter-spacing: 1.5px;
+        .dpad-btn:active, .dpad-btn.pressed {
+            background: #3b82f6;
             color: #ffffff;
-            pointer-events: none;
+            -webkit-transform: scale(0.94);
+            transform: scale(0.94);
         }
 
-        .center-sublabel {
-            font-size: 0.55rem;
-            color: #86868b;
-            letter-spacing: 0.5px;
-            margin-top: 1px;
-            text-transform: uppercase;
-            pointer-events: none;
+        .dpad-btn.btn-ok {
+            background: #2563eb;
+            color: #ffffff;
+            font-size: 1.05rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            border-color: #3b82f6;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
         }
 
-        .center-button:active, .center-button.pressed {
+        .dpad-btn.btn-ok:active, .dpad-btn.btn-ok.pressed {
+            background: #1d4ed8;
             -webkit-transform: scale(0.92);
             transform: scale(0.92);
-            background: #353640;
-            border-color: #60a5fa;
         }
 
         /* Lower Section: 2-Column Physical Style Buttons (Flexbox for 100% BB10 compatibility) */
@@ -317,7 +280,7 @@
             padding: 13px 4px;
         }
 
-        /* Passport Capacitive Keyboard Banner */
+        /* Passport Keyboard Legend */
         .keyboard-hint {
             font-size: 0.72rem;
             color: #86868b;
@@ -340,22 +303,28 @@
             color: #d1d1d6;
         }
 
-        /* Responsive Compact adaptation for 1440x1440 Passport square */
+        /* Compact Adaptation for Passport 1440x1440 Square Display */
         @media (max-height: 700px), (max-width: 380px) {
             body { padding: 4px; }
             .remote-frame {
                 padding: 12px 14px 14px 14px;
                 gap: 8px;
                 max-width: 340px;
-                border-radius: 32px;
+                border-radius: 28px;
             }
-            .clickpad-wrapper {
-                width: 180px;
-                height: 180px;
+            .dpad-cluster {
+                padding: 8px 10px;
+                gap: 6px;
+                border-radius: 22px;
             }
-            .center-button {
-                width: 70px;
-                height: 70px;
+            .dpad-btn {
+                width: 72px;
+                height: 50px;
+                font-size: 1.2rem;
+                border-radius: 14px;
+            }
+            .dpad-btn.btn-ok {
+                font-size: 0.95rem;
             }
             .remote-btn {
                 padding: 11px 6px;
@@ -373,7 +342,7 @@
     </style>
 </head>
 <body>
-    <main class="remote-frame" role="region" aria-label="Loewe Apple TV Style Remote">
+    <main class="remote-frame" role="region" aria-label="Loewe Precision Web Remote">
         <!-- Top Status Bar -->
         <header class="header">
             <span class="brand-title">LOEWE</span>
@@ -383,53 +352,52 @@
             </div>
         </header>
 
-        <!-- Siri Remote Gesture Touchpad / Clickpad -->
-        <section class="clickpad-wrapper" aria-label="Touch Navigation Area">
-            <div id="touchpad" class="touchpad" role="region" aria-label="Navigation Touchpad">
-                <span id="hint-up" class="arrow-hint hint-up">&#9650;</span>
-                <span id="hint-down" class="arrow-hint hint-down">&#9660;</span>
-                <span id="hint-left" class="arrow-hint hint-left">&#9664;</span>
-                <span id="hint-right" class="arrow-hint hint-right">&#9654;</span>
-
-                <!-- Center OK Button (Strictly isolated tap target) -->
-                <div id="center-disc" class="center-button" role="button" aria-label="OK Confirm">
-                    <span class="center-label">OK</span>
-                    <span class="center-sublabel">PRESS</span>
-                </div>
+        <!-- Classical High-Precision Physical D-Pad Cross Cluster -->
+        <section class="dpad-cluster" aria-label="Directional Navigation Pad">
+            <div class="dpad-row">
+                <button id="btn-up" class="dpad-btn" onclick="sendAction('key', '32', 'l2700')" title="Up (W)" aria-label="Up">&#9650;</button>
+            </div>
+            <div class="dpad-row">
+                <button id="btn-left" class="dpad-btn" onclick="sendAction('key', '17', 'l2700')" title="Left (A)" aria-label="Left">&#9664;</button>
+                <button id="btn-ok" class="dpad-btn btn-ok" onclick="sendAction('key', '38', 'l2700')" title="OK Confirm (Enter)" aria-label="OK Confirm">OK</button>
+                <button id="btn-right" class="dpad-btn" onclick="sendAction('key', '16', 'l2700')" title="Right (D)" aria-label="Right">&#9654;</button>
+            </div>
+            <div class="dpad-row">
+                <button id="btn-down" class="dpad-btn" onclick="sendAction('key', '33', 'l2700')" title="Down (S)" aria-label="Down">&#9660;</button>
             </div>
         </section>
 
         <!-- Lower Minimal Keypad (Golden Button Set) -->
         <section class="keypad-grid" aria-label="Remote Control Buttons">
             <!-- Row 1: Back (<) & Home (Sources / Home Menu) -->
-            <button class="remote-btn" onclick="sendAction('key', '65', 'l2700')" title="Back / Return" aria-label="Back">
+            <button class="remote-btn" onclick="sendAction('key', '65', 'l2700')" title="Back / Return (B)" aria-label="Back">
                 <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
                 <span>BACK</span>
             </button>
 
-            <button class="remote-btn btn-home" onclick="sendAction('key', '126', 'l2700')" title="Home / Sources Menu" aria-label="Home">
+            <button class="remote-btn btn-home" onclick="sendAction('key', '126', 'l2700')" title="Home / Sources Menu (Space)" aria-label="Home">
                 <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
                 <span>HOME</span>
             </button>
 
             <!-- Row 2: Play/Pause & Menu -->
-            <button class="remote-btn" onclick="sendAction('key', '53', 'l2700-hdr')" title="Play / Pause" aria-label="Play / Pause">
+            <button class="remote-btn" onclick="sendAction('key', '53', 'l2700-hdr')" title="Play / Pause (P)" aria-label="Play / Pause">
                 <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z M14.5 19h2V5h-2v14z"/></svg>
                 <span>PLAY</span>
             </button>
 
-            <button class="remote-btn" onclick="sendAction('key', '11', 'l2700')" title="Menu Settings" aria-label="Menu">
+            <button class="remote-btn" onclick="sendAction('key', '11', 'l2700')" title="Menu Settings (M)" aria-label="Menu">
                 <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
                 <span>MENU</span>
             </button>
 
             <!-- Row 3: Volume Controls -->
             <div class="vol-rocker">
-                <button class="remote-btn" onclick="sendAction('key', '20', 'l2700')" title="Volume Down" aria-label="Volume Down">
+                <button class="remote-btn" onclick="sendAction('key', '20', 'l2700')" title="Volume Down (-)" aria-label="Volume Down">
                     <svg viewBox="0 0 24 24"><path d="M7 9v6h4l5 5V4l-5 5H7z"/></svg>
                     <span>-</span>
                 </button>
-                <button class="remote-btn" onclick="sendAction('key', '21', 'l2700')" title="Volume Up" aria-label="Volume Up">
+                <button class="remote-btn" onclick="sendAction('key', '21', 'l2700')" title="Volume Up (+)" aria-label="Volume Up">
                     <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
                     <span>+</span>
                 </button>
@@ -454,7 +422,7 @@
 
         <!-- Physical Keyboard Shortcuts Hint -->
         <footer class="keyboard-hint">
-            <span class="badge-passport">Passport:</span> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> D-Pad &bull; <kbd>Enter</kbd> OK &bull; <kbd>Space</kbd> Home &bull; <kbd>B</kbd> Back &bull; <kbd>P</kbd> Play
+            <span class="badge-passport">Passport:</span> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 方向 &bull; <kbd>Enter</kbd> OK &bull; <kbd>Space</kbd> Home &bull; <kbd>B</kbd> 返回 &bull; <kbd>P</kbd> 播放
         </footer>
     </main>
 
@@ -462,14 +430,14 @@
         // ES5 Pure JavaScript - 100% compatible with BB10 WebKit and modern smartphones
         var tvOnline = false;
 
-        // Visual flash indicator helper for Touchpad hints
-        function flashDirection(dir) {
-            var el = document.getElementById('hint-' + dir);
+        // Visual flash indicator helper for D-Pad buttons when triggered by physical keyboard
+        function flashButton(btnId) {
+            var el = document.getElementById(btnId);
             if (el) {
-                el.className = 'arrow-hint hint-' + dir + ' active';
+                el.className = el.className + ' pressed';
                 setTimeout(function() {
-                    el.className = 'arrow-hint hint-' + dir;
-                }, 220);
+                    el.className = el.className.replace(' pressed', '');
+                }, 160);
             }
         }
 
@@ -533,152 +501,53 @@
             });
         }
 
-        // 1. ISOLATED CENTER OK BUTTON (Explicit Click Only)
-        // Never triggers accidentally on swipes or keydown!
-        (function initCenterOkButton() {
-            var disc = document.getElementById('center-disc');
-            if (!disc) return;
-
-            function triggerOk(e) {
-                if (e && e.stopPropagation) e.stopPropagation();
-                if (e && e.preventDefault) e.preventDefault();
-                disc.className = 'center-button pressed';
-                setTimeout(function() { disc.className = 'center-button'; }, 180);
-                sendAction('key', '38', 'l2700'); // OK Confirm
-            }
-
-            disc.addEventListener('click', triggerOk, false);
-            disc.addEventListener('touchend', triggerOk, false);
-        })();
-
-        // 2. TOUCHPAD GESTURES (Strictly Swipe Only - NEVER Fires OK)
-        (function initTouchpad() {
-            var pad = document.getElementById('touchpad');
-            var startX = 0, startY = 0;
-            var isTracking = false;
-            var SWIPE_THRESHOLD = 26; // pixels
-
-            function handleStart(x, y, target) {
-                // If touching the center disc, let center disc handler take care of OK
-                if (target && (target.id === 'center-disc' || target.parentElement.id === 'center-disc')) {
-                    return;
-                }
-                isTracking = true;
-                startX = x;
-                startY = y;
-                pad.className = 'touchpad active';
-            }
-
-            function handleMove(x, y, evt) {
-                if (!isTracking) return;
-                var dx = x - startX;
-                var dy = y - startY;
-
-                if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD) {
-                    isTracking = false; // Only fire once per swipe stroke!
-                    if (evt && evt.preventDefault) evt.preventDefault();
-
-                    if (Math.abs(dx) > Math.abs(dy)) {
-                        if (dx > 0) {
-                            flashDirection('right');
-                            sendAction('key', '16', 'l2700'); // Right
-                        } else {
-                            flashDirection('left');
-                            sendAction('key', '17', 'l2700'); // Left
-                        }
-                    } else {
-                        if (dy > 0) {
-                            flashDirection('down');
-                            sendAction('key', '33', 'l2700'); // Down
-                        } else {
-                            flashDirection('up');
-                            sendAction('key', '32', 'l2700'); // Up
-                        }
-                    }
-                }
-            }
-
-            function handleEnd() {
-                isTracking = false;
-                pad.className = 'touchpad';
-                // CRITICAL FIX: NO TAP TO OK HERE! Swiping area NEVER triggers OK!
-            }
-
-            // Touch events
-            pad.addEventListener('touchstart', function(e) {
-                if (e.touches.length === 1) {
-                    handleStart(e.touches[0].clientX, e.touches[0].clientY, e.target);
-                }
-            }, false);
-
-            pad.addEventListener('touchmove', function(e) {
-                if (e.touches.length === 1) {
-                    handleMove(e.touches[0].clientX, e.touches[0].clientY, e);
-                }
-            }, false);
-
-            pad.addEventListener('touchend', handleEnd, false);
-            pad.addEventListener('touchcancel', handleEnd, false);
-
-            // Mouse fallback for desktop testing
-            pad.addEventListener('mousedown', function(e) {
-                handleStart(e.clientX, e.clientY, e.target);
-            });
-            window.addEventListener('mousemove', function(e) {
-                handleMove(e.clientX, e.clientY, e);
-            });
-            window.addEventListener('mouseup', handleEnd);
-        })();
-
-        // 3. BLACKBERRY PASSPORT PHYSICAL KEYBOARD HANDLER
-        // 100% Pure Discrete Navigation - Zero Accidental OK Injections!
+        // BLACKBERRY PASSPORT PHYSICAL KEYBOARD HANDLER
+        // 100% Clean Mapping with Zero Accidental Confirms
         (function initKeyboardHandler() {
             function handleKeyDown(e) {
                 var keyCode = e.keyCode || e.which;
                 var key = (e.key ? e.key.toLowerCase() : String.fromCharCode(keyCode).toLowerCase());
 
-                // 1. Navigation Keys: W/A/S/D or Arrow keys (ONLY Move Cursor, NEVER OK)
+                // 1. Navigation: W/A/S/D or Arrow Keys
                 if (key === 'w' || key === 'arrowup' || keyCode === 38 || keyCode === 87) {
-                    flashDirection('up');
+                    flashButton('btn-up');
                     sendAction('key', '32', 'l2700'); // Up ONLY
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
                 }
                 if (key === 's' || key === 'arrowdown' || keyCode === 40 || keyCode === 83) {
-                    flashDirection('down');
+                    flashButton('btn-down');
                     sendAction('key', '33', 'l2700'); // Down ONLY
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
                 }
                 if (key === 'a' || key === 'arrowleft' || keyCode === 37 || keyCode === 65) {
-                    flashDirection('left');
+                    flashButton('btn-left');
                     sendAction('key', '17', 'l2700'); // Left ONLY
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
                 }
                 if (key === 'd' || key === 'arrowright' || keyCode === 39 || keyCode === 68) {
-                    flashDirection('right');
+                    flashButton('btn-right');
                     sendAction('key', '16', 'l2700'); // Right ONLY
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
                 }
 
-                // 2. OK Confirm: ONLY Enter Key (13)
+                // 2. OK Confirm: Enter Key ONLY
                 if (key === 'enter' || keyCode === 13) {
-                    var disc = document.getElementById('center-disc');
-                    disc.className = 'center-button pressed';
-                    setTimeout(function() { disc.className = 'center-button'; }, 180);
-                    sendAction('key', '38', 'l2700'); // OK Confirm
+                    flashButton('btn-ok');
+                    sendAction('key', '38', 'l2700'); // OK Confirm ONLY
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
                 }
 
-                // 3. HOME (Sources Menu): Space bar (32) or 'I' (73, Info/Home)
+                // 3. HOME (Sources Menu): Space Bar (Avoids BB10 H=History)
                 if (key === ' ' || key === 'space' || keyCode === 32 || key === 'i' || keyCode === 73) {
                     sendAction('key', '126', 'l2700'); // Home / Sources
                     e.preventDefault();
@@ -686,15 +555,15 @@
                     return false;
                 }
 
-                // 4. BACK (Return): Backspace (8), Esc (27), or 'B' (66)
-                if (key === 'backspace' || key === 'escape' || keyCode === 8 || keyCode === 27 || key === 'b' || keyCode === 66) {
+                // 4. BACK (Return): B / Backspace / Esc
+                if (key === 'b' || key === 'backspace' || key === 'escape' || keyCode === 8 || keyCode === 27 || keyCode === 66) {
                     sendAction('key', '65', 'l2700'); // Back
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
                 }
 
-                // 5. PLAY / PAUSE: 'P' (80)
+                // 5. PLAY / PAUSE: P
                 if (key === 'p' || keyCode === 80) {
                     sendAction('key', '53', 'l2700-hdr'); // Play / Pause
                     e.preventDefault();
@@ -702,7 +571,7 @@
                     return false;
                 }
 
-                // 6. MENU: 'M' (77)
+                // 6. MENU: M
                 if (key === 'm' || keyCode === 77) {
                     sendAction('key', '11', 'l2700'); // Menu
                     e.preventDefault();
@@ -710,7 +579,7 @@
                     return false;
                 }
 
-                // 7. VOLUME: '+' / '-'
+                // 7. VOLUME: + / -
                 if (key === '+' || key === '=' || keyCode === 187 || keyCode === 61) {
                     sendAction('key', '21', 'l2700'); // Vol +
                     e.preventDefault();

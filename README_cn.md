@@ -1,17 +1,17 @@
-# Loewe 现代极简 Web 遥控器（对标 Apple TV Siri Remote）
+# Loewe 经典高精度 Web 遥控器
 
-专为 Loewe 智能电视（SL520 / SL4xx / SL3xx 机芯系列）打造的高性能、极简独立开源 Web 遥控器。
+专为 Loewe 智能电视（SL520 / SL4xx / SL3xx 机芯系列）打造的高性能、极简独立开源 Web 遥控器，采用经典实体十字方向键（D-Pad）与黄金按键布局。
 
 具备双轨设备深度适配能力：
-1. **现代智能手机**：全尺寸 Apple TV Clickpad 交互，支持滑动手势导航、中心点触确认以及触觉震动反馈（Haptic Vibration）。
-2. **BlackBerry Passport (BB10 WebKit)**：完美适配 1:1 正方形 1440x1440 高清屏，坚持 ES5 XMLHttpRequest 规范，并原生捕获物理键盘滑动手势与按键实现无盲区物理盲操。
+1. **现代智能手机**：经典高对比度实体十字方向键群，独立的居中 OK 确认键，具备高响应度按压视觉动效与原生触觉微震反馈（Haptic Vibration）。
+2. **BlackBerry Passport (BB10 WebKit)**：完美适配 1:1 正方形 1440x1440 高清屏，坚持 ES5 XMLHttpRequest 规范，并全面利用全键盘实体键进行精准盲操，彻底告别误触。
 
 ---
 
 ## 1. 核心设计与交互特色
 
-- **Apple TV Siri Remote 交互架构**：
-  - **上半区**：超大圆形 Touchpad 触控板，支持单指轻扫（Swipe）上下左右导航，中心圆盘单击（Tap）触发 OK 确认，自带微震动反馈。
+- **经典高精度实体十字方向键群 (D-Pad)**：
+  - **上半区**：采用经典十字按键布局，包含清晰独立的 `UP`、`DOWN`、`LEFT`、`RIGHT` 与居中 `OK` 键。方向操作仅发送方向码，完全与确认逻辑解耦，绝不触发误确认。
   - **下半区**：双列极简物理键群（黄金按键集）：
     - `BACK`（返回，键码 65）
     - `HOME`（输入源与全局主页，键码 126）
@@ -21,15 +21,16 @@
     - `MUTE`（静音，键码 13）
     - `WAKE`（UDP 端口 9 网络唤醒）
     - `STANDBY`（软待机关机，键码 12，保持 Wi-Fi 3.3V 待机供电）
-- **BlackBerry Passport 物理键盘全盲操**：
-  - 无需低头盯屏幕，直接使用 Passport 键盘实体键操控电视：
-    - `W` / `S` / `A` / `D` 或 方向键：上下左右导航
-    - `Enter` / `Space`：OK 确认
+- **BlackBerry Passport 物理全键盘精准盲操**：
+  - 彻底规避 BB10 浏览器内置系统快捷键冲突（例如系统保留 `H` 强制呼出历史记录）：
+    - `W` / `S` / `A` / `D` 或 方向键：上下左右方向导航（单次按压仅移动焦点，绝不触发确认）
+    - `Enter`：OK 确认（专有确认键）
+    - `Space`（空格键）：HOME 主页 / 信号源列表（完美避开 BB10 `H` 键冲突）
     - `B` / `Backspace` / `Esc`：返回
-    - `H`：HOME 主页 / 信号源列表
-    - `M`：菜单
     - `P`：播放 / 暂停切换
+    - `M`：菜单
     - `+` / `-`：音量调节
+  - **按键联动屏幕视觉高亮**：敲击实体键盘时，屏幕对应的 D-Pad 按键同步毫秒级高亮闪烁，提供清晰的视觉操作反馈。
 - **自动状态自愈与网络探测**：
   - 原生支持 Loewe SOAP 协议（`urn:loewe.de:RemoteTV:Tablet`）。
   - 会话失效或电视重启时自动执行 `RequestAccess` 重新鉴权。
@@ -42,15 +43,15 @@
 
 ## 2. 遥控按键协议映射表
 
-| 功能动作 | 字母字典 (Alphabet) | 键值 (Value) | 通信协议 | 说明与快捷映射 |
+| 功能动作 | 字母字典 (Alphabet) | 键值 (Value) | 通信协议 | 说明与 Passport 实体键映射 |
 |---|---|---|---|---|
-| **UP** | `l2700` | `32` | SOAP InjectRCKey | 触控板向上轻扫 / 键盘 `W` |
-| **DOWN** | `l2700` | `33` | SOAP InjectRCKey | 触控板向下轻扫 / 键盘 `S` |
-| **LEFT** | `l2700` | `17` | SOAP InjectRCKey | 触控板向左轻扫 / 键盘 `A` |
-| **RIGHT** | `l2700` | `16` | SOAP InjectRCKey | 触控板向右轻扫 / 键盘 `D` |
-| **OK** | `l2700` | `38` | SOAP InjectRCKey | 触控板中心轻触 / 键盘 `Enter` |
-| **BACK** | `l2700` | `65` | SOAP InjectRCKey | 返回键 / 键盘 `B` |
-| **HOME** | `l2700` | `126` | SOAP InjectRCKey | 信号源与主界面呼出 / 键盘 `H` |
+| **UP** | `l2700` | `32` | SOAP InjectRCKey | 十字向上 / 键盘 `W` |
+| **DOWN** | `l2700` | `33` | SOAP InjectRCKey | 十字向下 / 键盘 `S` |
+| **LEFT** | `l2700` | `17` | SOAP InjectRCKey | 十字向左 / 键盘 `A` |
+| **RIGHT** | `l2700` | `16` | SOAP InjectRCKey | 十字向右 / 键盘 `D` |
+| **OK** | `l2700` | `38` | SOAP InjectRCKey | 中心确认 / 键盘 `Enter` |
+| **BACK** | `l2700` | `65` | SOAP InjectRCKey | 返回键 / 键盘 `B` 或 `Backspace` |
+| **HOME** | `l2700` | `126` | SOAP InjectRCKey | 信号源与主界面呼出 / 键盘 `Space` |
 | **PLAY/PAUSE** | `l2700-hdr` | `53` | SOAP InjectRCKey | 播放与暂停切换 / 键盘 `P` |
 | **MENU** | `l2700` | `11` | SOAP InjectRCKey | 系统菜单 / 键盘 `M` |
 | **VOL+** | `l2700` | `21` | SOAP InjectRCKey | 音量增加 / 键盘 `+` |
