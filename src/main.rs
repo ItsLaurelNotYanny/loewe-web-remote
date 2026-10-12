@@ -210,16 +210,18 @@ pub async fn request_access(state: &AppState) -> Result<(String, String), String
 
     let xml = execute_soap(&state.http_client, &state.tv_ip, "RequestAccess", &body).await?;
 
-    let cid_re = Regex::new(r"<m:ClientId>(.*?)</m:ClientId>").unwrap();
-    let fcid_re = Regex::new(r"<m:fcid>(.*?)</m:fcid>").unwrap();
+    static CID_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"<m:ClientId>(.*?)</m:ClientId>").unwrap());
+    static FCID_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"<m:fcid>(.*?)</m:fcid>").unwrap());
 
-    let client_id = cid_re
+    let client_id = CID_RE
         .captures(&xml)
         .and_then(|c| c.get(1))
         .map(|m| m.as_str().to_string())
         .ok_or_else(|| "Missing ClientId in RequestAccess response".to_string())?;
 
-    let fcid = fcid_re
+    let fcid = FCID_RE
         .captures(&xml)
         .and_then(|c| c.get(1))
         .map(|m| m.as_str().to_string())
