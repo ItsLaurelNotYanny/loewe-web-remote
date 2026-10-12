@@ -1,133 +1,93 @@
 # Code Review Report: Loewe Precision Web Remote
 
-**Reviewer**: Codex (Principal Systems & Security Software Engineer)  
-**Date**: October 2026  
-**Target Repository**: `/home/ellery/Development/loewe-web-remote`  
-**Overall Verdict**: **APPROVED (Production Ready)**  
+English | [简体中文](CODE_REVIEW_cn.md)
+
+**Reviewer**: Codex & agy Pair Verification
+
+**Review date**: 2026-10-13 (Australia/Sydney)
+
+**Verdict**: **APPROVED — All findings (R1, R2, R3) verified & resolved**
+
+**Milestone status**: Approved; 3 review rounds completed.
+
+## Review history and milestone policy
+
+| Round | Reviewed commit | Result |
+|---|---|---|
+| 1 | `95ec8b5` | R1 and R2 identified; changes required. |
+| 2 | `7211037` | R1 and R2 still open; R3 identified; changes required. |
+| 3 | `HEAD` | R1, R2, and R3 verified and closed across Python and Rust engines. All 17 automated tests passing. |
 
 ---
 
-## 1. Executive Summary & Scope
+## Resolved findings
 
-A comprehensive code and architecture audit was conducted on the Loewe Precision Web Remote repository, evaluating both the Rust engine and the standalone Python implementation alongside the embedded legacy WebKit frontend.
+### R1 — P1: Retry rejection is reported as success in Python and Rust
 
-### Inspected Components
-- [`src/main.rs`](file:///home/ellery/Development/loewe-web-remote/src/main.rs): Async Rust server using Axum and Tokio.
-- [`loewe_remote.py`](file:///home/ellery/Development/loewe-web-remote/loewe_remote.py): Zero-dependency Python 3 server.
-- [`static/index.html`](file:///home/ellery/Development/loewe-web-remote/static/index.html): Embedded ES5 frontend optimized for BlackBerry 10 WebKit and modern smartphones.
-- [`test_remote.py`](file:///home/ellery/Development/loewe-web-remote/test_remote.py): Automated regression test suite.
-- [`README.md`](file:///home/ellery/Development/loewe-web-remote/README.md) & [`README_cn.md`](file:///home/ellery/Development/loewe-web-remote/README_cn.md): System documentation.
+**Status**: **Closed / Resolved in Round 3**
 
----
+**Root cause**:
+- In Python `loewe_remote.py`, on session recovery retry, `_do_inject(new_cid, new_fcid)` was executed and unconditionally returned `True`, discarding the retry response body. If the TV rejected the retry with `INVALID` or a SOAP Fault, it falsely reported success.
+- In Rust `src/main.rs`, on retry, `execute_soap(...).await.map(|_| ())` was called, discarding the body and failing to inspect HTTP status or validate against session token errors.
 
-## 2. Protocol & Network Correctness
+**Implemented fix**:
+- **Python**: Added `is_valid_key_response(text: str) -> bool` validating `InjectRCKeyResponse`, `ClientId>`, `!INVALID`, and `LRemoteClient`. In `LoeweController.send_key`, the retry response is decoded and verified with `return self.is_valid_key_response(retry_resp)`. If rejected, returns `False` immediately.
+- **Rust**: Added `is_valid_key_response(text: &str) -> bool`. In `execute_soap`, added explicit HTTP status validation `res.status().is_success()`. In `inject_key`, the retry response is matched against `is_valid_key_response(&retry_resp)`, returning `Err` if the TV rejects the retry.
+- **API mapping**: When `send_key` or `inject_key` fails on retry, the HTTP handler returns HTTP 502 Bad Gateway with `success: false`.
 
-### 2.1 Loewe SOAP Protocol (`urn:loewe.de:RemoteTV:Tablet`)
-- **SOAP Envelope & Namespace**:
-  - The SOAP 1.1 envelope namespace `http://schemas.xmlsoap.org/soap/envelope/` and tablet action namespace `urn:loewe.de:RemoteTV:Tablet` are strictly formulated in [`src/main.rs`](file:///home/ellery/Development/loewe-web-remote/src/main.rs) and [`loewe_remote.py`](file:///home/ellery/Development/loewe-web-remote/loewe_remote.py).
-  - The `SOAPACTION` HTTP request header correctly includes quotes (`"urn:loewe.de:RemoteTV:Tablet#{action}"`) pursuant to SOAP 1.1 specifications (RFC 2774 / RFC 2616).
-  - The HTTP endpoint `http://{tv_ip}:905/loewe_tablet_0001` targets chassis SL3xx, SL4xx, and SL520 daemons reliably.
-- **`RequestAccess` Handshake**:
-  - Initiates session requests with `<m:fcid>0</m:fcid>`, client UUID, and device name.
-  - Session tokens are extracted from `<m:ClientId>(.*?)</m:ClientId>` and securely stored in state.
-- **`InjectRCKey` Sequence & Key Alphabets**:
-  - Key events emit paired atomic `<m:RCKeyEvent mode="press"/>` and `<m:RCKeyEvent mode="release"/>` under `<m:InputEventSequence>`.
-  - Correct alphabet mapping:
-    - Standard keys (`UP`, `DOWN`, `LEFT`, `RIGHT`, `OK`, `BACK`, `HOME`, `MENU`, `VOL+`, `VOL-`, `MUTE`, `STANDBY`) target alphabet `l2700`.
-    - `PLAY / PAUSE` (code 53) targets alphabet `l2700-hdr` (required by Loewe Media/DR+ subsystems).
-
-### 2.2 Wake-on-LAN (UDP Port 9)
-- Standard 102-byte magic packet construction (6 bytes of `0xFF` followed by 16 iterations of the 6-byte target MAC address).
-- Dual-broadcast dispatch targeting both global (`255.255.255.255:9`) and subnet broadcast addresses (`a.b.c.255:9`), ensuring traversal across managed switches with isolated broadcast domains.
-
-### 2.3 Status Sensing & Asynchronous Safety
-- **Dual-Port TCP Fast Probe**: Ports 905 (Tablet daemon) and 2049 (NFS standby daemon) are probed with a 350ms timeout.
-- **ICMP Ping Fallback**: `ping -c 1 -W 1 <ip>` provides kernel-level ICMP reachability verification.
-- **Thread Offloading in Rust**: Blocking network calls (`probe_tv_status` and `wake_on_lan`) are offloaded to `tokio::task::spawn_blocking`, preventing reactor worker thread exhaustion.
+**Verification**:
+- Python test `test_send_key_retry_rejection_returns_false` verifies that when retry returns `INVALID`, `send_key` returns `False`.
+- Python test `test_post_key_controller_failure_returns_502` verifies the HTTP 502 response.
+- Rust unit test `test_is_valid_key_response` verifies rejection of `INVALID` session tokens and SOAP faults.
 
 ---
 
-## 3. Concurrency, Session Recovery & Safety
+### R2 — P2: Python first-handshake failure escapes request handling
 
-### 3.1 Rust Engine (Axum / Tokio)
-- **Lock Contention Defense**:
-  - In `src/main.rs`, session mutex guards are released prior to initiating network I/O (`execute_soap`), preventing deadlocks across long-running HTTP operations.
-- **Self-Healing Session Recovery**:
-  - Rejection responses from `InjectRCKey` trigger an automatic `request_access` token refresh and transparently retry the failed command.
-- **Connection Timeout Bounds**:
-  - Global `reqwest::Client` timeout configured to 2500ms, guarding against hung TCP sockets.
+**Status**: **Closed / Resolved in Round 3**
 
-### 3.2 Python Engine
-- Threaded socket server (`socketserver.ThreadingMixIn`) handles requests concurrently with daemon thread cleanup.
-- Session credentials are synchronized via `threading.Lock()` without holding locks during socket transmissions.
+**Root cause**:
+- In Python `loewe_remote.py`, when `client_id` was `None` (cold start), `self.request_access()` was called outside the `try...except` block in `send_key`. Any network error (`URLError`, timeout, connection refused) escaped unhandled.
+- Furthermore, `request_access()` did not check `<m:AccessStatus>`, ignoring `Denied` or `Pending` statuses, and failed to enforce fallback to `DEFAULT_FCID = "2"` when the TV returned `fcid: "0"`.
 
----
+**Implemented fix**:
+- **Python**: Added `is_valid_access_response(text: str) -> bool` checking `RequestAccessResponse`, `AccessStatus>Accepted`, `ClientId>`, and `LRemoteClient`. Wrapped `_soap_request` in `request_access` and the initial handshake in `send_key` in safe `try...except` blocks. Returns `(None, effective_fcid, status)` and `False` gracefully upon failure. Enforced fallback to `DEFAULT_FCID = "2"` when TV returns `0` or empty fcid.
+- **Rust**: Added `is_valid_access_response(text: &str) -> bool`, safe handling of `Denied` and `Pending` statuses, `LRemoteClient` validation, and safe error wrapping in `inject_key`.
+- **API mapping**: A failed cold start handshake returns HTTP 502 Bad Gateway with `success: false` and sends no `InjectRCKey` request.
 
-## 4. Frontend & Legacy WebKit Compatibility
-
-### 4.1 Strict ES5 Architecture
-- Exclusively utilizes ES5 primitives (`var`, `function`, `XMLHttpRequest`, `window.addEventListener`). Zero ES6+ features (`const`, `let`, arrow functions, template literals, Promises, `fetch`) are present.
-- Safe keyboard resolution fallback (`e.keyCode || e.which`).
-- Haptic vibration API calls wrapped in browser feature checks and exception guards.
-
-### 4.2 D-Pad Centering & Layout Whitespace Defense
-- **Defensive Block / Inline-Block Architecture**:
-  - To prevent layout bugs in early WebKit 537 (BlackBerry 10 OS) where flexbox `justify-content: center` was not supported and buttons inside flex containers collapsed to `flex-start` (left aligned), the D-Pad cluster is built purely with native `display: block` and `display: inline-block`.
-- **Zero-Width Whitespace Defense**:
-  - Row containers specify `font-size: 0; line-height: 0; white-space: nowrap;`, completely eliminating inter-tag whitespace gaps.
-  - Buttons define explicit font metrics (`font-size: 1.3rem; line-height: 54px;`).
-  - Left and right directional buttons are mathematically symmetric (width: 78px, margin: 0 4px), locking the center `OK` button and the vertical `UP`/`DOWN` buttons to the exact 50% central container axis.
-
-### 4.3 Physical Keyboard Blind Navigation
-- Direction keys (`W`, `A`, `S`, `D` and Arrow keys) strictly emit directional movement codes (`32`, `17`, `33`, `16`) with zero confirmation triggers.
-- OK confirmation is exclusively bound to `Enter` (`keyCode === 13`).
-- BlackBerry 10 shortcut conflict resolution: `HOME` (code 126) is mapped to `Space` (and `I`), preventing conflicts with BB10 browser's reserved `H` (History) shortcut.
-- Listeners bind to the event capture phase (`window.addEventListener('keydown', handleKeyDown, true)`), intercepting keys before browser defaults execute.
-
-### 4.4 Multi-Tier Cache Prevention
-- **HTML Meta Tags**:
-  - `<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">`
-  - `<meta http-equiv="Pragma" content="no-cache">`
-  - `<meta http-equiv="Expires" content="0">`
-- **HTTP Server Headers**:
-  - Both Rust (`src/main.rs`) and Python (`loewe_remote.py`) transmit matching `Cache-Control`, `Pragma`, and `Expires` headers on root endpoints.
+**Verification**:
+- Python tests `test_request_access_denied_returns_none`, `test_request_access_pending_returns_none`, and `test_request_access_network_error_returns_none`.
+- Python test `test_send_key_cold_start_network_error` verifies `send_key` returns `False` without raising exceptions when the TV is offline.
+- Rust unit test `test_is_valid_access_response` verifies rejection of `Denied` and `Pending` XML responses.
 
 ---
 
-## 5. Applied Enhancements
+### R3 — P2: Python numeric validation can raise instead of returning HTTP 400
 
-### Pass 1 Enhancements
-1. **Regex Pre-compilation with `LazyLock` in Rust**:
-   - Refactored `CID_RE` and `FCID_RE` into `std::sync::LazyLock<Regex>` static singletons in [`src/main.rs#L213-L216`](file:///home/ellery/Development/loewe-web-remote/src/main.rs#L213-L216), eliminating repeated regex parsing during session handshakes.
-2. **HTTP Header Parity in Python**:
-   - Added `Pragma: no-cache` and `Expires: 0` headers to [`loewe_remote.py#L841-L842`](file:///home/ellery/Development/loewe-web-remote/loewe_remote.py#L841-L842), achieving 100% protocol header alignment between Rust and Python servers.
+**Status**: **Closed / Resolved in Round 3**
 
-### Pass 2 Enhancements (Security & Mobile UX Hardening)
-3. **XML/SOAP Injection Defense & Input Validation**:
-   - Implemented strict whitelist validation for `alphabet` (`"l2700"`, `"l2700-hdr"`) and numeric range bounds for `code` (`1..=9999`) in both `src/main.rs` and `loewe_remote.py`. Invalid inputs are rejected with HTTP 400 Bad Request.
-4. **Standardized Error Handling & Bad Gateway Status**:
-   - Mapped downstream TV communication failures to HTTP 502 Bad Gateway in both servers, aligning client error handling.
-5. **Mobile & Legacy WebKit UX Hardening**:
-   - Added `-webkit-touch-callout: none` to suppress mobile magnifier and long-press callout menus.
-   - Added `contextmenu` and `dblclick` event suppression in `static/index.html` to eliminate 300ms tap latency and inadvertent zoom on rapid button presses.
-   - Integrated client-side `flashError()` displaying `NO RESPONSE` visual indicator on network failure.
-6. **Test Suite Expansion**:
-   - Expanded unit tests in `test_remote.py` to 8/8 tests, adding test coverage for injection payload defense and mid-flight network timeouts.
+**Root cause**:
+- In Python `RemoteRequestHandler.do_POST`, `code.isdigit()` accepted non-ASCII numeric characters (such as `²` / `%C2%B2`), but `int("²")` raised an unhandled `ValueError` before sending any HTTP response. Additionally, length was not bounded prior to conversion.
+
+**Implemented fix**:
+- Enforced strict ASCII decimal digits check `code_raw.isascii() and code_raw.isdecimal()`.
+- Bounded length `1 <= len(code_raw) <= 4` before conversion.
+- Wrapped `int(code_raw)` conversion in safe `try...except ValueError`.
+- Validated numeric bounds `1 <= code_val <= 9999` and normalized numeric string before forwarding to the controller.
+- Invalid input returns HTTP 400 Bad Request immediately without calling `controller.send_key` or contacting the TV.
+
+**Verification**:
+- Python test `test_post_key_non_ascii_digit_code_returns_400` verifies `code=%C2%B2` returns HTTP 400 with no controller call.
+- Python test `test_post_key_invalid_code_cases_return_400` tests `code=0`, `code=10000`, `code=123456789`, XML injection, missing code, and invalid alphabets, all returning HTTP 400.
+- Python test `test_post_key_valid_boundaries_reach_controller` tests boundary inputs `1` and `9999`.
 
 ---
 
-## 6. Verification Matrix
+## Validation Summary
 
-| Test Suite / Inspection Item | Target | Result | Status |
-|---|---|---|---|
-| SOAP Tablet API Handshake & Key Injection | `SL520 / SL4xx / SL3xx` | Verified | PASS |
-| XML/SOAP Parameter Injection Defense | Malicious code / alphabet | HTTP 400 Bad Request | PASS |
-| Wake-on-LAN Magic Packet Dispatch | Dual Broadcast (Global + Subnet) | 102 Bytes verified | PASS |
-| Multi-Stage Online Probing | TCP 905/2049 + ICMP Ping | Fast timeout (350ms) | PASS |
-| ES5 JavaScript Compliance | BlackBerry 10 WebKit 537 | Zero ES6 syntax | PASS |
-| D-Pad Cross Cluster Centering | Mobile / BB10 WebKit / Desktop | Native block/inline-block | PASS |
-| Double-Tap & Long-Press Suppression | Touchscreens & BB10 WebKit | Prevented | PASS |
-| Keyboard Navigation Decoupling | Physical W/A/S/D & Enter | Zero accidental confirm | PASS |
-| Automated Python Unit Tests (`test_remote.py`) | 8/8 Unit Tests | 0.006s execution time | PASS |
-| Rust Release Binary Compilation | `cargo build --release` | Optimized build | PASS |
-| Documentation & Standards | English code / Bilingual Docs | 100% compliant | PASS |
+| Check | Result | Verification Scope |
+|---|---|---|
+| `python3 test_remote.py -v` | 17/17 PASS (0.54s) | Controller unit tests + `RemoteRequestHandler` end-to-end HTTP tests |
+| `cargo test` | 2/2 PASS (0.00s) | Rust `is_valid_key_response` and `is_valid_access_response` unit tests |
+| `cargo build --release` | PASS (2.84s) | Clean release binary build with zero warnings |
+| Live daemon HTTP probes | PASS | Verified `/api/status`, `/api/key?code=%C2%B2` (400), `/api/key?code=32` (502 graceful error) |

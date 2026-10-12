@@ -791,30 +791,69 @@ class LoeweController:
         with urllib.request.urlopen(req, timeout=timeout) as response:
             return response.read()
 
+    @staticmethod
+    def is_valid_key_response(text: str) -> bool:
+        """Verifies if InjectRCKey response is valid and authenticated."""
+        return bool(
+            "InjectRCKeyResponse" in text
+            and "ClientId>" in text
+            and "INVALID" not in text
+            and "LRemoteClient" in text
+        )
+
+    @staticmethod
+    def is_valid_access_response(text: str) -> bool:
+        """Verifies if RequestAccess response granted access."""
+        return bool(
+            "RequestAccessResponse" in text
+            and ("<m:AccessStatus>Accepted</m:AccessStatus>" in text or "AccessStatus>Accepted" in text)
+            and "ClientId>" in text
+            and "LRemoteClient" in text
+        )
+
     def request_access(self) -> Tuple[Optional[str], str, Optional[str]]:
-        """Executes RequestAccess to obtain an authenticated ClientId."""
+        """Executes RequestAccess to obtain an authenticated ClientId.
+
+        Safely catches network exceptions, validates AccessStatus and ClientId,
+        and enforces fallback to DEFAULT_FCID ('2') when TV returns '0'.
+        """
         body = f"""<m:fcid>0</m:fcid>
       <m:DeviceType>Tablet</m:DeviceType>
       <m:DeviceName>{self.device_name}</m:DeviceName>
       <m:DeviceUUID>{self.client_uuid}</m:DeviceUUID>
       <m:RequesterName>{self.device_name}</m:RequesterName>"""
 
-        xml_data = self._soap_request("RequestAccess", body)
-        text = xml_data.decode("utf-8", errors="ignore")
+        try:
+            xml_data = self._soap_request("RequestAccess", body)
+            text = xml_data.decode("utf-8", errors="ignore")
+        except Exception:
+            with self._lock:
+                self.client_id = None
+            return None, self.fcid or DEFAULT_FCID, None
 
         cid_match = re.search(r"<m:ClientId>(.*?)</m:ClientId>", text)
         fcid_match = re.search(r"<m:fcid>(.*?)</m:fcid>", text)
         status_match = re.search(r"<m:AccessStatus>(.*?)</m:AccessStatus>", text)
 
-        client_id = cid_match.group(1) if cid_match else None
-        fcid = fcid_match.group(1) if fcid_match else "0"
-        status = status_match.group(1) if status_match else None
+        status = status_match.group(1).strip() if status_match else None
+
+        if not self.is_valid_access_response(text):
+            with self._lock:
+                self.client_id = None
+            return None, self.fcid or DEFAULT_FCID, status
+
+        client_id = cid_match.group(1).strip() if cid_match else None
+        if client_id and not client_id.startswith("LRemoteClient"):
+            client_id = None
+
+        fcid_raw = fcid_match.group(1).strip() if fcid_match else "0"
+        effective_fcid = DEFAULT_FCID if not fcid_raw or fcid_raw == "0" else fcid_raw
 
         with self._lock:
             self.client_id = client_id
-            self.fcid = fcid
+            self.fcid = effective_fcid
 
-        return client_id, fcid, status
+        return client_id, effective_fcid, status
 
     def send_key(self, key_code: str, alphabet: str = "l2700") -> bool:
         """Injects remote key press/release sequence, auto-negotiating session if needed."""
@@ -822,8 +861,12 @@ class LoeweController:
             client_id = self.client_id
             fcid = self.fcid
 
+        # 1. Cold start / initial handshake with safe error handling
         if not client_id:
-            client_id, fcid, _ = self.request_access()
+            try:
+                client_id, fcid, _ = self.request_access()
+            except Exception:
+                return False
             if not client_id:
                 return False
 
@@ -836,19 +879,22 @@ class LoeweController:
       </m:InputEventSequence>"""
             return self._soap_request("InjectRCKey", body)
 
+        # 2. First key injection attempt
         try:
-            resp = _do_inject(client_id, fcid).decode("utf-8", errors="ignore")
-            # If response indicates invalid session, reconnect
-            if "INVALID" in resp or "<m:ClientId>" not in resp:
-                raise ValueError("Session token invalid or rejected")
-            return True
+            resp_bytes = _do_inject(client_id, fcid)
+            resp = resp_bytes.decode("utf-8", errors="ignore")
+            if self.is_valid_key_response(resp):
+                return True
+            raise ValueError("Session token invalid or rejected")
         except Exception:
-            # Re-negotiate session once on failure
+            # 3. Session recovery retry: Re-authenticate once and VERIFY retry response
             try:
                 new_cid, new_fcid, _ = self.request_access()
                 if new_cid:
-                    _do_inject(new_cid, new_fcid)
-                    return True
+                    retry_bytes = _do_inject(new_cid, new_fcid)
+                    retry_resp = retry_bytes.decode("utf-8", errors="ignore")
+                    # CRITICAL: Verify retry response to prevent false positive success
+                    return self.is_valid_key_response(retry_resp)
             except Exception:
                 pass
             return False
@@ -887,17 +933,32 @@ class RemoteRequestHandler(http.server.BaseHTTPRequestHandler):
             ok = self.controller.wake_on_lan()
             self._send_json({"success": ok, "action": "wake"})
         elif url.path == "/api/key":
-            code = query.get("code", [None])[0]
+            code_raw = query.get("code", [None])[0]
             alphabet = query.get("alphabet", ["l2700"])[0]
-            if not code or not code.isdigit() or not (1 <= int(code) <= 9999):
+
+            # Enforce strict ASCII decimal digits, bound length (1..4 digits)
+            if not code_raw or not code_raw.isascii() or not code_raw.isdecimal() or not (1 <= len(code_raw) <= 4):
                 self._send_json({"success": False, "error": "Invalid key code: must be positive integer (1-9999)"}, status=400)
                 return
+
+            try:
+                code_val = int(code_raw)
+            except ValueError:
+                self._send_json({"success": False, "error": "Invalid key code: must be positive integer (1-9999)"}, status=400)
+                return
+
+            if not (1 <= code_val <= 9999):
+                self._send_json({"success": False, "error": "Invalid key code: out of range (1-9999)"}, status=400)
+                return
+
             if alphabet not in ("l2700", "l2700-hdr"):
                 self._send_json({"success": False, "error": "Invalid alphabet: allowed ['l2700', 'l2700-hdr']"}, status=400)
                 return
-            ok = self.controller.send_key(code, alphabet=alphabet)
+
+            code_norm = str(code_val)
+            ok = self.controller.send_key(code_norm, alphabet=alphabet)
             status_code = 200 if ok else 502
-            self._send_json({"success": ok, "action": "key", "code": code, "alphabet": alphabet}, status=status_code)
+            self._send_json({"success": ok, "action": "key", "code": code_norm, "alphabet": alphabet}, status=status_code)
         else:
             self.send_response(404)
             self.end_headers()

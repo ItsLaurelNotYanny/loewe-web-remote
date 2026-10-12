@@ -212,7 +212,30 @@ pub async fn execute_soap(
         .await
         .map_err(|e| e.to_string())?;
 
+    if !res.status().is_success() {
+        return Err(format!(
+            "SOAP request failed with HTTP status {}: {}",
+            res.status(),
+            res.text().await.unwrap_or_default()
+        ));
+    }
+
     res.text().await.map_err(|e| e.to_string())
+}
+
+pub fn is_valid_key_response(text: &str) -> bool {
+    text.contains("InjectRCKeyResponse")
+        && text.contains("ClientId>")
+        && !text.contains("INVALID")
+        && text.contains("LRemoteClient")
+}
+
+pub fn is_valid_access_response(text: &str) -> bool {
+    text.contains("RequestAccessResponse")
+        && (text.contains("<m:AccessStatus>Accepted</m:AccessStatus>")
+            || text.contains("AccessStatus>Accepted"))
+        && text.contains("ClientId>")
+        && text.contains("LRemoteClient")
 }
 
 pub async fn request_access(state: &AppState) -> Result<(String, String), String> {
@@ -227,6 +250,16 @@ pub async fn request_access(state: &AppState) -> Result<(String, String), String
 
     let xml = execute_soap(&state.http_client, &state.tv_ip, "RequestAccess", &body).await?;
 
+    if !is_valid_access_response(&xml) {
+        if xml.contains("Denied") {
+            return Err("AccessStatus Denied: TV rejected remote pairing".to_string());
+        }
+        if xml.contains("Pending") {
+            return Err("AccessStatus Pending: Pairing confirmation required on TV screen".to_string());
+        }
+        return Err(format!("Invalid RequestAccess response from TV: {}", xml));
+    }
+
     static CID_RE: std::sync::LazyLock<Regex> =
         std::sync::LazyLock::new(|| Regex::new(r"<m:ClientId>(.*?)</m:ClientId>").unwrap());
     static FCID_RE: std::sync::LazyLock<Regex> =
@@ -235,32 +268,46 @@ pub async fn request_access(state: &AppState) -> Result<(String, String), String
     let client_id = CID_RE
         .captures(&xml)
         .and_then(|c| c.get(1))
-        .map(|m| m.as_str().to_string())
-        .ok_or_else(|| "Missing ClientId in RequestAccess response".to_string())?;
+        .map(|m| m.as_str().trim().to_string())
+        .filter(|s| !s.is_empty() && s.starts_with("LRemoteClient"))
+        .ok_or_else(|| "Missing or invalid ClientId in RequestAccess response".to_string())?;
 
     let fcid = FCID_RE
         .captures(&xml)
         .and_then(|c| c.get(1))
-        .map(|m| m.as_str().to_string())
-        .unwrap_or_else(|| "0".to_string());
+        .map(|m| m.as_str().trim().to_string())
+        .unwrap_or_else(|| DEFAULT_FCID.to_string());
+
+    let effective_fcid = if fcid.is_empty() || fcid == "0" {
+        DEFAULT_FCID.to_string()
+    } else {
+        fcid
+    };
 
     let mut session = state.session.lock().await;
     session.client_id = Some(client_id.clone());
-    session.fcid = fcid.clone();
+    session.fcid = effective_fcid.clone();
 
-    Ok((client_id, fcid))
+    Ok((client_id, effective_fcid))
 }
 
 pub async fn inject_key(state: &AppState, key_code: &str, alphabet: &str) -> Result<(), String> {
+    // 1. Ensure authenticated session (safe initial handshake)
     let (mut client_id, mut fcid) = {
         let session = state.session.lock().await;
         (session.client_id.clone(), session.fcid.clone())
     };
 
     if client_id.is_none() {
-        let (cid, fid) = request_access(state).await?;
-        client_id = Some(cid);
-        fcid = fid;
+        match request_access(state).await {
+            Ok((cid, fid)) => {
+                client_id = Some(cid);
+                fcid = fid;
+            }
+            Err(e) => {
+                return Err(format!("Initial handshake failed: {}", e));
+            }
+        }
     }
 
     let c_id = client_id.as_ref().unwrap();
@@ -275,12 +322,19 @@ pub async fn inject_key(state: &AppState, key_code: &str, alphabet: &str) -> Res
         fcid, c_id, alphabet, key_code, alphabet, key_code
     );
 
+    // 2. First attempt
     match execute_soap(&state.http_client, &state.tv_ip, "InjectRCKey", &body).await {
-        Ok(resp) if resp.contains("<m:ClientId>") && !resp.contains("INVALID") => Ok(()),
-        _ => {
-            // Auto re-negotiate session once
-            warn!("InjectRCKey rejected session token, re-authenticating...");
-            let (new_cid, new_fcid) = request_access(state).await?;
+        Ok(resp) if is_valid_key_response(&resp) => Ok(()),
+        first_res => {
+            // Re-authenticate and retry exactly once
+            warn!("First key injection attempt failed ({:?}), re-authenticating...", first_res);
+            let (new_cid, new_fcid) = match request_access(state).await {
+                Ok(pair) => pair,
+                Err(e) => {
+                    return Err(format!("Session recovery handshake failed: {}", e));
+                }
+            };
+
             let retry_body = format!(
                 r#"<m:fcid>{}</m:fcid>
       <m:ClientId>{}</m:ClientId>
@@ -290,9 +344,17 @@ pub async fn inject_key(state: &AppState, key_code: &str, alphabet: &str) -> Res
       </m:InputEventSequence>"#,
                 new_fcid, new_cid, alphabet, key_code, alphabet, key_code
             );
-            execute_soap(&state.http_client, &state.tv_ip, "InjectRCKey", &retry_body)
-                .await
-                .map(|_| ())
+
+            // 3. Retry attempt: CRUCIAL - MUST VERIFY RETRY RESPONSE TO PREVENT FALSE POSITIVE SUCCESS!
+            match execute_soap(&state.http_client, &state.tv_ip, "InjectRCKey", &retry_body).await {
+                Ok(retry_resp) if is_valid_key_response(&retry_resp) => Ok(()),
+                Ok(retry_resp) => {
+                    Err(format!("TV rejected key injection on retry: {}", retry_resp))
+                }
+                Err(e) => {
+                    Err(format!("Network error on key injection retry: {}", e))
+                }
+            }
         }
     }
 }
@@ -424,4 +486,61 @@ async fn main() {
     axum::serve(listener, app)
         .await
         .expect("Server error");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_valid_key_response() {
+        let valid_xml = r#"<SOAP-ENV:Envelope><SOAP-ENV:Body>
+            <m:InjectRCKeyResponse xmlns:m="urn:loewe.de:RemoteTV:Tablet">
+                <m:fcid>2</m:fcid>
+                <m:ClientId>LRemoteClient-0-1790240143</m:ClientId>
+            </m:InjectRCKeyResponse>
+        </SOAP-ENV:Body></SOAP-ENV:Envelope>"#;
+        assert!(is_valid_key_response(valid_xml));
+
+        // Critical test for '重试误报成功': TV returns INVALID ClientId
+        let invalid_xml = r#"<SOAP-ENV:Envelope><SOAP-ENV:Body>
+            <m:InjectRCKeyResponse xmlns:m="urn:loewe.de:RemoteTV:Tablet">
+                <m:ClientId>INVALID</m:ClientId>
+            </m:InjectRCKeyResponse>
+        </SOAP-ENV:Body></SOAP-ENV:Envelope>"#;
+        assert!(!is_valid_key_response(invalid_xml));
+
+        let fault_xml = r#"<SOAP-ENV:Envelope><SOAP-ENV:Body>
+            <SOAP-ENV:Fault><faultcode>SOAP-ENV:Server</faultcode></SOAP-ENV:Fault>
+        </SOAP-ENV:Body></SOAP-ENV:Envelope>"#;
+        assert!(!is_valid_key_response(fault_xml));
+    }
+
+    #[test]
+    fn test_is_valid_access_response() {
+        let accepted_xml = r#"<SOAP-ENV:Envelope><SOAP-ENV:Body>
+            <m:RequestAccessResponse xmlns:m="urn:loewe.de:RemoteTV:Tablet">
+                <m:fcid>0</m:fcid>
+                <m:ClientId>LRemoteClient-0-998877</m:ClientId>
+                <m:AccessStatus>Accepted</m:AccessStatus>
+            </m:RequestAccessResponse>
+        </SOAP-ENV:Body></SOAP-ENV:Envelope>"#;
+        assert!(is_valid_access_response(accepted_xml));
+
+        // Initial handshake anomaly: TV denies pairing request
+        let denied_xml = r#"<SOAP-ENV:Envelope><SOAP-ENV:Body>
+            <m:RequestAccessResponse xmlns:m="urn:loewe.de:RemoteTV:Tablet">
+                <m:AccessStatus>Denied</m:AccessStatus>
+            </m:RequestAccessResponse>
+        </SOAP-ENV:Body></SOAP-ENV:Envelope>"#;
+        assert!(!is_valid_access_response(denied_xml));
+
+        // Initial handshake anomaly: TV requires on-screen PIN confirmation
+        let pending_xml = r#"<SOAP-ENV:Envelope><SOAP-ENV:Body>
+            <m:RequestAccessResponse xmlns:m="urn:loewe.de:RemoteTV:Tablet">
+                <m:AccessStatus>Pending</m:AccessStatus>
+            </m:RequestAccessResponse>
+        </SOAP-ENV:Body></SOAP-ENV:Envelope>"#;
+        assert!(!is_valid_access_response(pending_xml));
+    }
 }
