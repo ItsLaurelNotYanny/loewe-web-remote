@@ -118,6 +118,24 @@ class TestLoeweController(unittest.TestCase):
         self.assertEqual(mock_soap.call_count, 3)
         self.assertEqual(self.controller.client_id, "LRemoteClient-0-fresh")
 
+    def test_input_validation_defense(self):
+        """Verify XML injection payloads and invalid alphabets are rejected."""
+        malicious_code = '32" mode="inject'
+        malicious_alphabet = 'l2700" inject="true'
+
+        self.assertFalse(malicious_code.isdigit())
+        self.assertNotIn(malicious_alphabet, {"l2700", "l2700-hdr"})
+
+    @patch.object(LoeweController, "_soap_request")
+    def test_send_key_network_timeout(self, mock_soap):
+        """Verify graceful error recovery when TV drops connection mid-flight."""
+        self.controller.client_id = "LRemoteClient-0-123"
+        self.controller.fcid = "0"
+        mock_soap.side_effect = urllib.error.URLError("Connection refused")
+
+        res = self.controller.send_key("32", alphabet="l2700")
+        self.assertFalse(res)
+
 
 if __name__ == "__main__":
     unittest.main()

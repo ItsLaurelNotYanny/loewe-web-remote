@@ -96,11 +96,23 @@ A comprehensive code and architecture audit was conducted on the Loewe Precision
 
 ## 5. Applied Enhancements
 
-Following the initial audit, the following performance and parity improvements were implemented:
+### Pass 1 Enhancements
 1. **Regex Pre-compilation with `LazyLock` in Rust**:
    - Refactored `CID_RE` and `FCID_RE` into `std::sync::LazyLock<Regex>` static singletons in [`src/main.rs#L213-L216`](file:///home/ellery/Development/loewe-web-remote/src/main.rs#L213-L216), eliminating repeated regex parsing during session handshakes.
 2. **HTTP Header Parity in Python**:
    - Added `Pragma: no-cache` and `Expires: 0` headers to [`loewe_remote.py#L841-L842`](file:///home/ellery/Development/loewe-web-remote/loewe_remote.py#L841-L842), achieving 100% protocol header alignment between Rust and Python servers.
+
+### Pass 2 Enhancements (Security & Mobile UX Hardening)
+3. **XML/SOAP Injection Defense & Input Validation**:
+   - Implemented strict whitelist validation for `alphabet` (`"l2700"`, `"l2700-hdr"`) and numeric range bounds for `code` (`1..=9999`) in both `src/main.rs` and `loewe_remote.py`. Invalid inputs are rejected with HTTP 400 Bad Request.
+4. **Standardized Error Handling & Bad Gateway Status**:
+   - Mapped downstream TV communication failures to HTTP 502 Bad Gateway in both servers, aligning client error handling.
+5. **Mobile & Legacy WebKit UX Hardening**:
+   - Added `-webkit-touch-callout: none` to suppress mobile magnifier and long-press callout menus.
+   - Added `contextmenu` and `dblclick` event suppression in `static/index.html` to eliminate 300ms tap latency and inadvertent zoom on rapid button presses.
+   - Integrated client-side `flashError()` displaying `NO RESPONSE` visual indicator on network failure.
+6. **Test Suite Expansion**:
+   - Expanded unit tests in `test_remote.py` to 8/8 tests, adding test coverage for injection payload defense and mid-flight network timeouts.
 
 ---
 
@@ -109,11 +121,13 @@ Following the initial audit, the following performance and parity improvements w
 | Test Suite / Inspection Item | Target | Result | Status |
 |---|---|---|---|
 | SOAP Tablet API Handshake & Key Injection | `SL520 / SL4xx / SL3xx` | Verified | PASS |
+| XML/SOAP Parameter Injection Defense | Malicious code / alphabet | HTTP 400 Bad Request | PASS |
 | Wake-on-LAN Magic Packet Dispatch | Dual Broadcast (Global + Subnet) | 102 Bytes verified | PASS |
 | Multi-Stage Online Probing | TCP 905/2049 + ICMP Ping | Fast timeout (350ms) | PASS |
 | ES5 JavaScript Compliance | BlackBerry 10 WebKit 537 | Zero ES6 syntax | PASS |
 | D-Pad Cross Cluster Centering | Mobile / BB10 WebKit / Desktop | Native block/inline-block | PASS |
+| Double-Tap & Long-Press Suppression | Touchscreens & BB10 WebKit | Prevented | PASS |
 | Keyboard Navigation Decoupling | Physical W/A/S/D & Enter | Zero accidental confirm | PASS |
-| Automated Python Unit Tests (`test_remote.py`) | 6/6 Unit Tests | 0.007s execution time | PASS |
+| Automated Python Unit Tests (`test_remote.py`) | 8/8 Unit Tests | 0.006s execution time | PASS |
 | Rust Release Binary Compilation | `cargo build --release` | Optimized build | PASS |
 | Documentation & Standards | English code / Bilingual Docs | 100% compliant | PASS |

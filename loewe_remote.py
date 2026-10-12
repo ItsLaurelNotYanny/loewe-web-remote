@@ -50,6 +50,7 @@ HTML_CONTENT = """<!DOCTYPE html>
         * {
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
             margin: 0;
             padding: 0;
         }
@@ -511,18 +512,41 @@ HTML_CONTENT = """<!DOCTYPE html>
             } catch (e) {}
         }
 
+        // Prevent context menu popups and double-tap zoom gestures
+        document.addEventListener('contextmenu', function(e) { e.preventDefault(); }, false);
+        document.addEventListener('dblclick', function(e) { e.preventDefault(); }, false);
+
         // Generic XHR caller (ES5 compliant)
         function apiRequest(method, url, callback) {
             var xhr = new XMLHttpRequest();
             xhr.open(method, url, true);
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4) {
+                    var success = false;
+                    if (xhr.status === 200) {
+                        try {
+                            var data = JSON.parse(xhr.responseText);
+                            success = (data.success !== false);
+                        } catch (e) {
+                            success = true;
+                        }
+                    }
                     if (callback) {
-                        callback(xhr.status === 200, xhr.responseText);
+                        callback(success, xhr.responseText);
                     }
                 }
             };
             xhr.send();
+        }
+
+        // Visual error flash on failed action
+        function flashError() {
+            var badge = document.getElementById('status-badge');
+            var text = document.getElementById('status-text');
+            if (badge && text) {
+                badge.className = 'status-pill standby';
+                text.textContent = 'NO RESPONSE';
+            }
         }
 
         // Send remote button action
@@ -536,6 +560,9 @@ HTML_CONTENT = """<!DOCTYPE html>
                 }
             }
             apiRequest('POST', url, function(ok) {
+                if (!ok) {
+                    flashError();
+                }
                 setTimeout(fetchStatus, 1500);
             });
         }
@@ -862,11 +889,15 @@ class RemoteRequestHandler(http.server.BaseHTTPRequestHandler):
         elif url.path == "/api/key":
             code = query.get("code", [None])[0]
             alphabet = query.get("alphabet", ["l2700"])[0]
-            if not code:
-                self._send_json({"success": False, "error": "Missing key code"}, status=400)
+            if not code or not code.isdigit() or not (1 <= int(code) <= 9999):
+                self._send_json({"success": False, "error": "Invalid key code: must be positive integer (1-9999)"}, status=400)
+                return
+            if alphabet not in ("l2700", "l2700-hdr"):
+                self._send_json({"success": False, "error": "Invalid alphabet: allowed ['l2700', 'l2700-hdr']"}, status=400)
                 return
             ok = self.controller.send_key(code, alphabet=alphabet)
-            self._send_json({"success": ok, "action": "key", "code": code, "alphabet": alphabet})
+            status_code = 200 if ok else 502
+            self._send_json({"success": ok, "action": "key", "code": code, "alphabet": alphabet}, status=status_code)
         else:
             self.send_response(404)
             self.end_headers()

@@ -75,6 +75,23 @@ pub struct KeyParams {
     pub alphabet: String,
 }
 
+impl KeyParams {
+    pub fn validate(&self) -> Result<(u32, &str), &'static str> {
+        let code_num = self
+            .code
+            .trim()
+            .parse::<u32>()
+            .map_err(|_| "Invalid key code: must be numeric")?;
+        if code_num == 0 || code_num > 9999 {
+            return Err("Key code out of valid range (1..9999)");
+        }
+        match self.alphabet.as_str() {
+            "l2700" | "l2700-hdr" => Ok((code_num, self.alphabet.as_str())),
+            _ => Err("Invalid alphabet: must be 'l2700' or 'l2700-hdr'"),
+        }
+    }
+}
+
 fn default_alphabet() -> String {
     "l2700".to_string()
 }
@@ -323,24 +340,41 @@ async fn key_handler(
     State(state): State<AppState>,
     Query(params): Query<KeyParams>,
 ) -> impl IntoResponse {
-    match inject_key(&state, &params.code, &params.alphabet).await {
+    let (code_num, alphabet) = match params.validate() {
+        Ok(v) => v,
+        Err(err) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(ActionResponse {
+                    success: false,
+                    action: "key".to_string(),
+                    code: Some(params.code),
+                    alphabet: Some(params.alphabet),
+                    error: Some(err.to_string()),
+                }),
+            );
+        }
+    };
+
+    let code_str = code_num.to_string();
+    match inject_key(&state, &code_str, alphabet).await {
         Ok(_) => (
             StatusCode::OK,
             Json(ActionResponse {
                 success: true,
                 action: "key".to_string(),
-                code: Some(params.code),
-                alphabet: Some(params.alphabet),
+                code: Some(code_str),
+                alphabet: Some(alphabet.to_string()),
                 error: None,
             }),
         ),
         Err(err) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
+            StatusCode::BAD_GATEWAY,
             Json(ActionResponse {
                 success: false,
                 action: "key".to_string(),
-                code: Some(params.code),
-                alphabet: Some(params.alphabet),
+                code: Some(code_str),
+                alphabet: Some(alphabet.to_string()),
                 error: Some(err),
             }),
         ),

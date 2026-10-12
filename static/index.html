@@ -11,6 +11,7 @@
         * {
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
             margin: 0;
             padding: 0;
         }
@@ -472,18 +473,41 @@
             } catch (e) {}
         }
 
+        // Prevent context menu popups and double-tap zoom gestures
+        document.addEventListener('contextmenu', function(e) { e.preventDefault(); }, false);
+        document.addEventListener('dblclick', function(e) { e.preventDefault(); }, false);
+
         // Generic XHR caller (ES5 compliant)
         function apiRequest(method, url, callback) {
             var xhr = new XMLHttpRequest();
             xhr.open(method, url, true);
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4) {
+                    var success = false;
+                    if (xhr.status === 200) {
+                        try {
+                            var data = JSON.parse(xhr.responseText);
+                            success = (data.success !== false);
+                        } catch (e) {
+                            success = true;
+                        }
+                    }
                     if (callback) {
-                        callback(xhr.status === 200, xhr.responseText);
+                        callback(success, xhr.responseText);
                     }
                 }
             };
             xhr.send();
+        }
+
+        // Visual error flash on failed action
+        function flashError() {
+            var badge = document.getElementById('status-badge');
+            var text = document.getElementById('status-text');
+            if (badge && text) {
+                badge.className = 'status-pill standby';
+                text.textContent = 'NO RESPONSE';
+            }
         }
 
         // Send remote button action
@@ -497,6 +521,9 @@
                 }
             }
             apiRequest('POST', url, function(ok) {
+                if (!ok) {
+                    flashError();
+                }
                 setTimeout(fetchStatus, 1500);
             });
         }

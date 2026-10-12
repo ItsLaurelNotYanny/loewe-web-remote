@@ -92,11 +92,23 @@
 
 ## 5. 评审优化建议及落地情况
 
-在本次审查过程中，Codex 提出了两项性能与规范对齐建议，已即时完成落地：
+### 第一轮评审优化落地
 1. **Rust 正则预编译优化（`std::sync::LazyLock`）**：
    - 将 `CID_RE` 与 `FCID_RE` 重构为 `std::sync::LazyLock<Regex>` 静态单例预编译（[`src/main.rs#L213-L216`](file:///home/ellery/Development/loewe-web-remote/src/main.rs#L213-L216)），避免重复调用 `request_access` 时的运行时正则解析开销。
 2. **Python 服务端协议头对齐**：
    - 在 [`loewe_remote.py#L841-L842`](file:///home/ellery/Development/loewe-web-remote/loewe_remote.py#L841-L842) 中补齐 `Pragma: no-cache` 与 `Expires: 0` 响应头，与 Rust 引擎达到 100% 协议头一致性。
+
+### 第二轮深度评审优化落地（协议安全与移动端防抖强化）
+3. **XML/SOAP 注入防御与严格参数校验**：
+   - 在 `src/main.rs` 与 `loewe_remote.py` 中对 `alphabet` 设立白名单校验（仅允许 `"l2700"` 或 `"l2700-hdr"`），并限制 `code` 必须为合法整型（`1..=9999`）。非法注入请求直接拦截并返回 HTTP 400 Bad Request。
+4. **统一错误码与网关失效标识**：
+   - 当电视无法连通或断网时，服务端统一标准化返回 HTTP 502 Bad Gateway，使客户端明确感知电视通信状态。
+5. **移动端与遗留 WebKit 体验防抖**：
+   - 全局注入 `-webkit-touch-callout: none`，消除移动端长按放大镜与呼出呼叫菜单。
+   - 监听并拦截 `contextmenu` 与 `dblclick`，消除双击误触发缩放及 300ms 连击延迟。
+   - 增加前端 `flashError()` 视觉响应，操作失败时顶部状态胶囊同步显式告警 `NO RESPONSE`。
+6. **自动化单元测试扩展**：
+   - `test_remote.py` 扩充至 8/8 项测试用例，覆盖 XML 注入测试与网络瞬断超时异常处理。
 
 ---
 
@@ -105,11 +117,13 @@
 | 测试与审查项目 | 目标范围 | 实际结果 | 审查结论 |
 |---|---|---|---|
 | SOAP Tablet API 握手与按键注入 | `SL520 / SL4xx / SL3xx` 机芯 | 协议格式精准 | 通过 (PASS) |
+| XML/SOAP 参数注入安全拦截 | 恶意 code / alphabet | 返回 HTTP 400 Bad Request | 通过 (PASS) |
 | Wake-on-LAN 魔术包广播 | 全局广播 + 子网定向广播 | 102 字节规范 | 通过 (PASS) |
 | 多阶在线状态探测 | TCP 905/2049 + ICMP Ping | 350ms 快速超时 | 通过 (PASS) |
 | ES5 JavaScript 语法合规性 | BlackBerry 10 WebKit 537 | 零 ES6 语法泄露 | 通过 (PASS) |
 | 十字方向键 D-Pad 绝对居中 | 移动端 / BB10 WebKit / 桌面端 | 原生 block/inline-block 数学对称 | 通过 (PASS) |
+| 移动端双击缩放与长按呼出拦截 | 触屏 / BlackBerry 10 WebKit | 彻底拦截消除 | 通过 (PASS) |
 | 物理键盘方向与确认严格解耦 | 实体 W/A/S/D 与 Enter | 零误确认触发 | 通过 (PASS) |
-| 自动化 Python 单元测试套件 | 6/6 项测试全部通过 | 运行耗时 0.007 秒 | 通过 (PASS) |
+| 自动化 Python 单元测试套件 | 8/8 项测试全部通过 | 运行耗时 0.006 秒 | 通过 (PASS) |
 | Rust 发行版单二进制构建 | `cargo build --release` | 优化编译无警告 | 通过 (PASS) |
 | 代码语言与双语技术文档 | 代码100%英文 / 中英双语文档 | 完全符合全局准则 | 通过 (PASS) |
