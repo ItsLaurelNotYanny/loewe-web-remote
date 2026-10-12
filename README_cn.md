@@ -1,5 +1,7 @@
 # Loewe 经典高精度 Web 遥控器
 
+[English](README.md) | 简体中文
+
 专为 Loewe 智能电视（SL520 / SL4xx / SL3xx 机芯系列）打造的高性能、极简独立开源 Web 遥控器，采用经典实体十字方向键（D-Pad）与黄金按键布局。
 
 具备双轨设备深度适配能力：
@@ -67,25 +69,25 @@
 ### 方案 A：纯 Python 单文件运行（免装依赖）
 
 ```bash
-# 采用默认参数启动 (电视 IP: 192.168.3.226, 端口: 8080)
+# Run with defaults (TV IP: 192.168.3.226, Port: 8080)
 python3 loewe_remote.py
 
-# 指定自定义参数
+# Specify custom parameters
 python3 loewe_remote.py --tv-ip 192.168.3.226 --mac f8:a2:d6:67:0f:f0 --port 8080
 ```
 
-### 方案 B：独立静态编译 Rust 单二进制运行
+### 方案 B：独立 Rust 单二进制运行
 
 ```bash
-# 构建优化发行包
+# Build release binary
 cargo build --release
 
-# 运行单二进制文件
+# Run standalone binary
 ./target/release/loewe-web-remote --tv-ip 192.168.3.226 --port 8080
 ```
 
 启动后在任意手机、电脑或 BlackBerry Passport 浏览器中访问：
-`http://<运行主机IP>:8080`
+`http://<SERVER_IP>:8080`
 
 ---
 
@@ -96,3 +98,19 @@ cargo build --release
 ```bash
 python3 test_remote.py -v
 ```
+
+## 5. 服务端分工与网页交付
+
+Python 和 Rust 是两套可供选择的完整服务端实现。每套都负责提供界面、暴露 `/api/status`、`/api/key` 和 `/api/wake`、管理电视会话、发送 SOAP 指令、探测状态及发送 Wake-on-LAN 数据包。一次部署启动其中一套即可；两套默认均使用 8080 端口，不能同时占用同一监听地址和端口。
+
+| 组件 | 职责 | 交付文件 / 页面来源 |
+|---|---|---|
+| Python | 使用标准库的服务端，通过 Python 3 运行。 | `loewe_remote.py`，网页包含在 `HTML_CONTENT` 中。 |
+| Rust | 编译后的服务端，运行时不需要 Python。 | `target/release/loewe-web-remote`，构建时通过 `include_str!` 嵌入 `static/index.html`。 |
+| HTML/CSS/ES5 JavaScript | 浏览器布局、外观、触控/键盘事件及 XHR API 请求。 | 任一后端均提供相同的页面内容。 |
+
+浏览器执行页面中的 JavaScript，所选服务端将页面发来的 API 请求转换为电视控制指令。单独打开 HTML 文件不会提供后端 API。
+
+目前两份页面副本相同，但没有自动同步步骤。修改 UI 时，须同时更新 `static/index.html` 和 Python 的 `HTML_CONTENT`。修改 Rust 内嵌页面后须重新编译并重启；修改 Python 脚本后须重启服务。
+
+评审状态及验证范围见 [CODE_REVIEW_cn.md](CODE_REVIEW_cn.md)。

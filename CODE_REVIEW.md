@@ -2,92 +2,95 @@
 
 English | [简体中文](CODE_REVIEW_cn.md)
 
-**Reviewer**: Codex & agy Pair Verification
+**Reviewer**: Codex (independent verification of agy's fixes)
 
 **Review date**: 2026-10-13 (Australia/Sydney)
 
-**Verdict**: **APPROVED — All findings (R1, R2, R3) verified & resolved**
+**Reviewed commit**: `0300fb7959671fec8443cb7c9e2892b2dd82ec75`
 
-**Milestone status**: Approved; 3 review rounds completed.
+**Verdict**: **APPROVED for the R1–R3 code review milestone**
 
-## Review history and milestone policy
+**Milestone status**: All three findings closed in round 3. Real-device validation remains outside this approval.
+
+## Review history and handoff policy
 
 | Round | Reviewed commit | Result |
 |---|---|---|
 | 1 | `95ec8b5` | R1 and R2 identified; changes required. |
 | 2 | `7211037` | R1 and R2 still open; R3 identified; changes required. |
-| 3 | `HEAD` | R1, R2, and R3 verified and closed across Python and Rust engines. All 17 automated tests passing. |
+| 3 | `0300fb7` | Codex independently verified the fixes and closed R1, R2, and R3. |
 
----
+Each review must update this document and its Chinese counterpart before its result is reported in chat. Use stable finding IDs, record fix commits, and close findings only after reviewer verification. The target is to close all findings within three rounds per milestone. Repeated findings require an explicit reminder, repair direction, and acceptance criteria; findings remaining after round three keep the milestone unapproved.
 
-## Resolved findings
+The first two rounds initially appeared only in chat. Codex subsequently corrected that handoff omission in both reports. Updating the handoff did not count as an additional review round. The current verdict records Codex's independent checks, rather than relying on the implementer's earlier approval text.
 
-### R1 — P1: Retry rejection is reported as success in Python and Rust
+## Closed findings
 
-**Status**: **Closed / Resolved in Round 3**
+### R1 — P1: Retry rejection was reported as success
 
-**Root cause**:
-- In Python `loewe_remote.py`, on session recovery retry, `_do_inject(new_cid, new_fcid)` was executed and unconditionally returned `True`, discarding the retry response body. If the TV rejected the retry with `INVALID` or a SOAP Fault, it falsely reported success.
-- In Rust `src/main.rs`, on retry, `execute_soap(...).await.map(|_| ())` was called, discarding the body and failing to inspect HTTP status or validate against session token errors.
+**Status**: Closed in round 3.
 
-**Implemented fix**:
-- **Python**: Added `is_valid_key_response(text: str) -> bool` validating `InjectRCKeyResponse`, `ClientId>`, `!INVALID`, and `LRemoteClient`. In `LoeweController.send_key`, the retry response is decoded and verified with `return self.is_valid_key_response(retry_resp)`. If rejected, returns `False` immediately.
-- **Rust**: Added `is_valid_key_response(text: &str) -> bool`. In `execute_soap`, added explicit HTTP status validation `res.status().is_success()`. In `inject_key`, the retry response is matched against `is_valid_key_response(&retry_resp)`, returning `Err` if the TV rejects the retry.
-- **API mapping**: When `send_key` or `inject_key` fails on retry, the HTTP handler returns HTTP 502 Bad Gateway with `success: false`.
+**Locations**: [Python](loewe_remote.py), `is_valid_key_response` and `send_key`; [Rust](src/main.rs), `execute_soap`, `is_valid_key_response`, and `inject_key`.
 
-**Verification**:
-- Python test `test_send_key_retry_rejection_returns_false` verifies that when retry returns `INVALID`, `send_key` returns `False`.
-- Python test `test_post_key_controller_failure_returns_502` verifies the HTTP 502 response.
-- Rust unit test `test_is_valid_key_response` verifies rejection of `INVALID` session tokens and SOAP faults.
+Both implementations now validate the original injection and the retry using the same response predicate. Python returns the retry validation result instead of unconditionally returning `True`. Rust checks upstream HTTP status and validates the retry body instead of discarding it. Recovery remains bounded to one re-authentication and one retry.
 
----
+**Acceptance evidence**:
 
-### R2 — P2: Python first-handshake failure escapes request handling
+- The repository Python regression reproduces an invalid first injection, successful re-authentication, and an invalid retry, and asserts failure with exactly three SOAP calls.
+- Codex separately checked Python retry responses containing `INVALID`, missing `ClientId`, a SOAP Fault, an upstream HTTP error, and a valid success response. All five cases passed with exactly three SOAP calls.
+- In an isolated copy of the reviewed Rust source, Codex exercised the actual `key_handler` → `inject_key` → `execute_soap` path through a local HTTP proxy simulating the TV. The same five cases passed. The HTTP 500 case deliberately included a success-looking body to verify status checking.
+- Rust returned HTTP 502 with `success: false` for rejected retries and HTTP 200 with `success: true` for successful recovery. Python's repository HTTP tests verify the failure-to-502 mapping.
 
-**Status**: **Closed / Resolved in Round 3**
+### R2 — P2: Python first-handshake errors escaped request handling
 
-**Root cause**:
-- In Python `loewe_remote.py`, when `client_id` was `None` (cold start), `self.request_access()` was called outside the `try...except` block in `send_key`. Any network error (`URLError`, timeout, connection refused) escaped unhandled.
-- Furthermore, `request_access()` did not check `<m:AccessStatus>`, ignoring `Denied` or `Pending` statuses, and failed to enforce fallback to `DEFAULT_FCID = "2"` when the TV returned `fcid: "0"`.
+**Status**: Closed in round 3.
 
-**Implemented fix**:
-- **Python**: Added `is_valid_access_response(text: str) -> bool` checking `RequestAccessResponse`, `AccessStatus>Accepted`, `ClientId>`, and `LRemoteClient`. Wrapped `_soap_request` in `request_access` and the initial handshake in `send_key` in safe `try...except` blocks. Returns `(None, effective_fcid, status)` and `False` gracefully upon failure. Enforced fallback to `DEFAULT_FCID = "2"` when TV returns `0` or empty fcid.
-- **Rust**: Added `is_valid_access_response(text: &str) -> bool`, safe handling of `Denied` and `Pending` statuses, `LRemoteClient` validation, and safe error wrapping in `inject_key`.
-- **API mapping**: A failed cold start handshake returns HTTP 502 Bad Gateway with `success: false` and sends no `InjectRCKey` request.
+**Location**: [Python](loewe_remote.py), `request_access` and `send_key`.
 
-**Verification**:
-- Python tests `test_request_access_denied_returns_none`, `test_request_access_pending_returns_none`, and `test_request_access_network_error_returns_none`.
-- Python test `test_send_key_cold_start_network_error` verifies `send_key` returns `False` without raising exceptions when the TV is offline.
-- Rust unit test `test_is_valid_access_response` verifies rejection of `Denied` and `Pending` XML responses.
+The initial handshake now handles network failures and returns a controlled failure. The HTTP handler can therefore return HTTP 502 JSON instead of abandoning the request.
 
----
+**Acceptance evidence**:
 
-### R3 — P2: Python numeric validation can raise instead of returning HTTP 400
+- Repository tests cover initial network failure, denied access, pending access, and cold-start `send_key` failure.
+- Codex called the actual Python `do_POST` with a new controller and mocked the SOAP transport to raise `TimeoutError` and `urllib.error.URLError`. Both cases returned HTTP 502 with `success: false`, made only one `RequestAccess` call, and sent no `InjectRCKey`.
+- The isolated Rust flow test also verified that a first-handshake HTTP 500 returns HTTP 502 with `success: false` and sends no injection.
 
-**Status**: **Closed / Resolved in Round 3**
+The fix commit additionally changes access-response validation and normalizes a returned `fcid` of `0` or an empty value to `DEFAULT_FCID` (`2`). That normalization is observed implementation behavior covered by mock tests, not a real-TV protocol compatibility claim.
 
-**Root cause**:
-- In Python `RemoteRequestHandler.do_POST`, `code.isdigit()` accepted non-ASCII numeric characters (such as `²` / `%C2%B2`), but `int("²")` raised an unhandled `ValueError` before sending any HTTP response. Additionally, length was not bounded prior to conversion.
+### R3 — P2: Python numeric validation raised instead of returning HTTP 400
 
-**Implemented fix**:
-- Enforced strict ASCII decimal digits check `code_raw.isascii() and code_raw.isdecimal()`.
-- Bounded length `1 <= len(code_raw) <= 4` before conversion.
-- Wrapped `int(code_raw)` conversion in safe `try...except ValueError`.
-- Validated numeric bounds `1 <= code_val <= 9999` and normalized numeric string before forwarding to the controller.
-- Invalid input returns HTTP 400 Bad Request immediately without calling `controller.send_key` or contacting the TV.
+**Status**: Closed in round 3.
 
-**Verification**:
-- Python test `test_post_key_non_ascii_digit_code_returns_400` verifies `code=%C2%B2` returns HTTP 400 with no controller call.
-- Python test `test_post_key_invalid_code_cases_return_400` tests `code=0`, `code=10000`, `code=123456789`, XML injection, missing code, and invalid alphabets, all returning HTTP 400.
-- Python test `test_post_key_valid_boundaries_reach_controller` tests boundary inputs `1` and `9999`.
+**Location**: [Python](loewe_remote.py), `RemoteRequestHandler.do_POST`.
 
----
+Validation now requires ASCII decimal digits, bounds the raw length to 1–4 before integer conversion, catches conversion errors, enforces the range 1–9999, and forwards the normalized numeric string.
 
-## Validation Summary
+**Acceptance evidence**:
 
-| Check | Result | Verification Scope |
+- Real loopback HTTP tests verify HTTP 400 with no controller call for `²`, an oversized digit string, XML injection text, an invalid alphabet, a missing code, `0`, and `10000`.
+- Boundary values `1` and `9999` reach the controller with the expected alphabet.
+- The old test that checks only `isdigit()` and a test-local set remains, but the new HTTP tests exercise application validation and provide the closure evidence.
+
+## Validation performed by Codex
+
+| Check | Result | Scope |
 |---|---|---|
-| `python3 test_remote.py -v` | 17/17 PASS (0.54s) | Controller unit tests + `RemoteRequestHandler` end-to-end HTTP tests |
-| `cargo test` | 2/2 PASS (0.00s) | Rust `is_valid_key_response` and `is_valid_access_response` unit tests |
-| `cargo build --release` | PASS (2.84s) | Clean release binary build with zero warnings |
-| Live daemon HTTP probes | PASS | Verified `/api/status`, `/api/key?code=%C2%B2` (400), `/api/key?code=32` (502 graceful error) |
+| `python3 test_remote.py -v` | 17/17 passed | Controller tests and actual loopback HTTP handler tests. |
+| `cargo test --locked --offline` | 2/2 passed | Repository response-predicate tests. |
+| `cargo build --release --locked --offline` | Passed | Current release binary builds. |
+| Supplemental Python checks | Passed | Five retry cases and two cold-start exception cases. |
+| Isolated supplemental Rust tests | 2/2 passed | Five complete retry/API cases and first-handshake HTTP failure. |
+| Frontend equality | Passed | Python `HTML_CONTENT` equals `static/index.html` byte for byte. |
+| Current `http://127.0.0.1:8080/` | HTTP 200; page equality passed | Running Rust process serves the current frontend and expected cache headers. |
+
+The supplemental Rust tests ran from an isolated `/tmp` copy with an explicit local HTTP proxy on a high port. They contacted no real television and changed no tracked implementation files. They are additional reviewer checks, not two more tests committed to the repository. The earlier round's inability to bind a mock TV to privileged port 905 was bypassed by this test arrangement.
+
+No real television key injection, pairing, Wake-on-LAN, BB10 rendering, device keyboard behavior, or touch latency was tested in this round. Approval closes the reported code findings; it does not declare production readiness or verify every chassis.
+
+## Delivery architecture verified
+
+Python and Rust provide two independently deployable servers. Each serves the webpage, exposes the same API paths, manages TV sessions, sends SOAP commands, probes status, and broadcasts Wake-on-LAN packets. They do not need to run together.
+
+The webpage uses HTML, CSS, and ES5 JavaScript. Rust embeds [static/index.html](static/index.html) at compile time through `include_str!`; Python embeds an identical copy in `HTML_CONTENT` inside [loewe_remote.py](loewe_remote.py). Page changes require a Rust rebuild and a Python embedded-copy update followed by a server restart.
+
+At verification time, port 8080 was served by `./target/release/loewe-web-remote --tv-ip 192.168.3.226 --port 8080`. Its root page matched `static/index.html`. This identifies the running server in this workspace; it does not establish the deployment on another host.

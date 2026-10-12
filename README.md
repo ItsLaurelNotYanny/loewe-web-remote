@@ -1,5 +1,7 @@
 # Loewe Precision Web Remote
 
+English | [简体中文](README_cn.md)
+
 A high-performance, minimalist web remote control for Loewe OLED/LED TVs (chassis SL520, SL4xx, SL3xx) built with classical tactile aesthetics.
 
 Designed with dual-tier device support:
@@ -96,3 +98,19 @@ Execute the automated test suite:
 ```bash
 python3 test_remote.py -v
 ```
+
+## 5. Server Roles and Webpage Delivery
+
+Python and Rust are two alternative, complete server implementations. Each serves the UI, exposes `/api/status`, `/api/key`, and `/api/wake`, manages TV sessions, sends SOAP commands, probes status, and sends Wake-on-LAN packets. Start one implementation for a deployment; both default to port 8080 and cannot share the same bind address and port.
+
+| Component | Role | Delivered artifact / page source |
+|---|---|---|
+| Python | Standard-library server; run with Python 3. | `loewe_remote.py`, including the page in `HTML_CONTENT`. |
+| Rust | Compiled server; Python is not required to run it. | `target/release/loewe-web-remote`, embedding `static/index.html` via `include_str!` at build time. |
+| HTML/CSS/ES5 JavaScript | Browser layout, appearance, touch/keyboard events, and XHR API requests. | Equivalent page content served by either backend. |
+
+The browser executes the page's JavaScript. The chosen server translates its API requests into television commands. Opening the HTML file alone does not provide the backend APIs.
+
+The two page copies currently match, but there is no automatic synchronization step. Update both `static/index.html` and Python's `HTML_CONTENT` when changing the UI. Rebuild and restart Rust after changes to its embedded page; restart Python after changes to its script.
+
+For review status and validation scope, see [CODE_REVIEW.md](CODE_REVIEW.md).
