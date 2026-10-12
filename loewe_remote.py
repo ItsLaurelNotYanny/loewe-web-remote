@@ -42,6 +42,9 @@ HTML_CONTENT = """<!DOCTYPE html>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Loewe Remote</title>
     <style>
         * {
@@ -55,13 +58,8 @@ HTML_CONTENT = """<!DOCTYPE html>
             width: 100%;
             height: 100%;
             min-height: 100%;
-            max-height: 100%;
-            overflow: hidden;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            margin: 0;
+            padding: 0;
             background-color: #0a0a0c;
             color: #f5f5f7;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -71,24 +69,32 @@ HTML_CONTENT = """<!DOCTYPE html>
         }
 
         body {
+            display: -webkit-box;
             display: -webkit-flex;
             display: flex;
+            -webkit-box-orient: vertical;
+            -webkit-box-direction: normal;
             -webkit-flex-direction: column;
             flex-direction: column;
-            -webkit-align-items: center;
-            align-items: center;
+            -webkit-box-pack: center;
             -webkit-justify-content: center;
             justify-content: center;
+            -webkit-box-align: center;
+            -webkit-align-items: center;
+            align-items: center;
             padding: 8px;
             text-align: center;
+            overflow-x: hidden;
+            overflow-y: auto;
+            box-sizing: border-box;
         }
 
         /* Remote Chassis: High Contrast, Solid Tactile Feel */
         .remote-frame {
+            display: block;
             width: 100%;
             max-width: 360px;
-            max-height: 98vh;
-            margin: 0 auto;
+            margin: auto;
             text-align: center;
             background: #16171b;
             background: linear-gradient(180deg, #1d1e23 0%, #131417 100%);
@@ -96,26 +102,23 @@ HTML_CONTENT = """<!DOCTYPE html>
             border-radius: 36px;
             padding: 16px 16px 18px 16px;
             box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
-            display: -webkit-flex;
-            display: flex;
-            -webkit-flex-direction: column;
-            flex-direction: column;
-            -webkit-align-items: center;
-            align-items: center;
-            gap: 12px;
+            box-sizing: border-box;
         }
 
         /* Top Header: Brand & Status Pill */
         .header {
             width: 100%;
+            display: -webkit-box;
             display: -webkit-flex;
             display: flex;
-            -webkit-align-items: center;
-            align-items: center;
+            -webkit-box-pack: justify;
             -webkit-justify-content: space-between;
             justify-content: space-between;
+            -webkit-box-align: center;
+            -webkit-align-items: center;
+            align-items: center;
             padding: 0 6px;
-            margin-bottom: 6px;
+            margin-bottom: 10px;
         }
 
         .brand-title {
@@ -127,8 +130,10 @@ HTML_CONTENT = """<!DOCTYPE html>
         }
 
         .status-pill {
+            display: -webkit-inline-box;
             display: -webkit-inline-flex;
             display: inline-flex;
+            -webkit-box-align: center;
             -webkit-align-items: center;
             align-items: center;
             gap: 6px;
@@ -147,6 +152,9 @@ HTML_CONTENT = """<!DOCTYPE html>
             height: 7px;
             border-radius: 50%;
             background: #86868b;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 4px;
         }
 
         .status-pill.online {
@@ -167,40 +175,29 @@ HTML_CONTENT = """<!DOCTYPE html>
         }
 
         /* Classical Physical D-Pad Cross Cluster */
+        /* Bulletproof Native Block & Inline-Block Centering (No flexbox bugs) */
         .dpad-cluster {
+            display: block;
             width: 100%;
             max-width: 320px;
-            margin: 0 auto 10px auto;
-            align-self: center;
-            -webkit-align-self: center;
+            margin: 0 auto 12px auto;
             text-align: center;
             background: #1c1d22;
             padding: 14px 10px;
             border-radius: 28px;
             border: 1px solid rgba(255, 255, 255, 0.06);
             box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
-            display: -webkit-flex;
-            display: flex;
-            -webkit-flex-direction: column;
-            flex-direction: column;
-            -webkit-align-items: center;
-            align-items: center;
-            -webkit-justify-content: center;
-            justify-content: center;
+            box-sizing: border-box;
         }
 
         .dpad-row {
+            display: block;
             width: 100%;
             margin: 0 auto 8px auto;
             text-align: center;
-            display: -webkit-flex;
-            display: flex;
-            -webkit-align-items: center;
-            align-items: center;
-            -webkit-justify-content: center;
-            justify-content: center;
-            align-self: center;
-            -webkit-align-self: center;
+            white-space: nowrap;
+            font-size: 0;
+            line-height: 0;
         }
 
         .dpad-row:last-child {
@@ -208,28 +205,27 @@ HTML_CONTENT = """<!DOCTYPE html>
         }
 
         .dpad-btn {
+            display: inline-block;
+            vertical-align: middle;
             width: 78px;
             height: 56px;
+            line-height: 54px;
             margin: 0 4px;
+            padding: 0;
             background: #25262d;
             color: #f5f5f7;
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 16px;
             font-size: 1.3rem;
             font-weight: 700;
-            display: -webkit-inline-flex;
-            display: inline-flex;
-            -webkit-align-items: center;
-            align-items: center;
-            -webkit-justify-content: center;
-            justify-content: center;
+            text-align: center;
             cursor: pointer;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
             transition: background 0.1s, transform 0.08s;
             touch-action: manipulation;
-            vertical-align: middle;
             -webkit-appearance: none;
             appearance: none;
+            box-sizing: border-box;
         }
 
         .dpad-btn:active, .dpad-btn.pressed {
@@ -244,7 +240,6 @@ HTML_CONTENT = """<!DOCTYPE html>
             color: #ffffff;
             font-size: 1.05rem;
             font-weight: 800;
-            letter-spacing: 1px;
             border-color: #3b82f6;
             box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
         }
@@ -426,9 +421,7 @@ HTML_CONTENT = """<!DOCTYPE html>
                 <button id="btn-up" class="dpad-btn" onclick="sendAction('key', '32', 'l2700')" title="Up (W)" aria-label="Up">&#9650;</button>
             </div>
             <div class="dpad-row">
-                <button id="btn-left" class="dpad-btn" onclick="sendAction('key', '17', 'l2700')" title="Left (A)" aria-label="Left">&#9664;</button>
-                <button id="btn-ok" class="dpad-btn btn-ok" onclick="sendAction('key', '38', 'l2700')" title="OK Confirm (Enter)" aria-label="OK Confirm">OK</button>
-                <button id="btn-right" class="dpad-btn" onclick="sendAction('key', '16', 'l2700')" title="Right (D)" aria-label="Right">&#9654;</button>
+                <button id="btn-left" class="dpad-btn" onclick="sendAction('key', '17', 'l2700')" title="Left (A)" aria-label="Left">&#9664;</button><button id="btn-ok" class="dpad-btn btn-ok" onclick="sendAction('key', '38', 'l2700')" title="OK Confirm (Enter)" aria-label="OK Confirm">OK</button><button id="btn-right" class="dpad-btn" onclick="sendAction('key', '16', 'l2700')" title="Right (D)" aria-label="Right">&#9654;</button>
             </div>
             <div class="dpad-row">
                 <button id="btn-down" class="dpad-btn" onclick="sendAction('key', '33', 'l2700')" title="Down (S)" aria-label="Down">&#9660;</button>

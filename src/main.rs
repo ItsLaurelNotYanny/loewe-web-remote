@@ -280,7 +280,14 @@ pub async fn inject_key(state: &AppState, key_code: &str, alphabet: &str) -> Res
 
 // Handlers
 async fn index_handler() -> impl IntoResponse {
-    Html(EMBEDDED_HTML)
+    (
+        [
+            (header::CACHE_CONTROL, "no-cache, no-store, must-revalidate"),
+            (header::PRAGMA, "no-cache"),
+            (header::EXPIRES, "0"),
+        ],
+        Html(EMBEDDED_HTML),
+    )
 }
 
 async fn status_handler(State(state): State<AppState>) -> impl IntoResponse {
