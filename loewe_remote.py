@@ -80,6 +80,7 @@ HTML_CONTENT = """<!DOCTYPE html>
             -webkit-justify-content: center;
             justify-content: center;
             padding: 8px;
+            text-align: center;
         }
 
         /* Remote Chassis: High Contrast, Solid Tactile Feel */
@@ -87,6 +88,8 @@ HTML_CONTENT = """<!DOCTYPE html>
             width: 100%;
             max-width: 360px;
             max-height: 98vh;
+            margin: 0 auto;
+            text-align: center;
             background: #16171b;
             background: linear-gradient(180deg, #1d1e23 0%, #131417 100%);
             border: 1px solid rgba(255, 255, 255, 0.08);
@@ -112,6 +115,7 @@ HTML_CONTENT = """<!DOCTYPE html>
             -webkit-justify-content: space-between;
             justify-content: space-between;
             padding: 0 6px;
+            margin-bottom: 6px;
         }
 
         .brand-title {
@@ -164,42 +168,57 @@ HTML_CONTENT = """<!DOCTYPE html>
 
         /* Classical Physical D-Pad Cross Cluster */
         .dpad-cluster {
+            width: 100%;
+            max-width: 320px;
+            margin: 0 auto 10px auto;
+            align-self: center;
+            -webkit-align-self: center;
+            text-align: center;
+            background: #1c1d22;
+            padding: 14px 10px;
+            border-radius: 28px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
             display: -webkit-flex;
             display: flex;
             -webkit-flex-direction: column;
             flex-direction: column;
             -webkit-align-items: center;
             align-items: center;
-            gap: 8px;
-            margin: 2px 0;
-            background: #1c1d22;
-            padding: 12px 14px;
-            border-radius: 28px;
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
-        }
-
-        .dpad-row {
-            display: -webkit-flex;
-            display: flex;
-            -webkit-align-items: center;
-            align-items: center;
-            gap: 8px;
             -webkit-justify-content: center;
             justify-content: center;
         }
 
+        .dpad-row {
+            width: 100%;
+            margin: 0 auto 8px auto;
+            text-align: center;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-align-items: center;
+            align-items: center;
+            -webkit-justify-content: center;
+            justify-content: center;
+            align-self: center;
+            -webkit-align-self: center;
+        }
+
+        .dpad-row:last-child {
+            margin-bottom: 0;
+        }
+
         .dpad-btn {
             width: 78px;
-            height: 58px;
+            height: 56px;
+            margin: 0 4px;
             background: #25262d;
             color: #f5f5f7;
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 16px;
             font-size: 1.3rem;
             font-weight: 700;
-            display: -webkit-flex;
-            display: flex;
+            display: -webkit-inline-flex;
+            display: inline-flex;
             -webkit-align-items: center;
             align-items: center;
             -webkit-justify-content: center;
@@ -208,6 +227,9 @@ HTML_CONTENT = """<!DOCTYPE html>
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
             transition: background 0.1s, transform 0.08s;
             touch-action: manipulation;
+            vertical-align: middle;
+            -webkit-appearance: none;
+            appearance: none;
         }
 
         .dpad-btn:active, .dpad-btn.pressed {
@@ -351,14 +373,21 @@ HTML_CONTENT = """<!DOCTYPE html>
                 max-width: 340px;
                 border-radius: 28px;
             }
+            .header {
+                margin-bottom: 4px;
+            }
             .dpad-cluster {
-                padding: 8px 10px;
-                gap: 6px;
+                padding: 10px 8px;
+                margin: 0 auto 8px auto;
                 border-radius: 22px;
+            }
+            .dpad-row {
+                margin: 0 auto 6px auto;
             }
             .dpad-btn {
                 width: 72px;
                 height: 50px;
+                margin: 0 3px;
                 font-size: 1.2rem;
                 border-radius: 14px;
             }
@@ -461,7 +490,7 @@ HTML_CONTENT = """<!DOCTYPE html>
 
         <!-- Physical Keyboard Shortcuts Hint -->
         <footer class="keyboard-hint">
-            <span class="badge-passport">Passport:</span> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 方向 &bull; <kbd>Enter</kbd> OK &bull; <kbd>Space</kbd> Home &bull; <kbd>B</kbd> 返回 &bull; <kbd>P</kbd> 播放
+            <span class="badge-passport">Passport:</span> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Nav &bull; <kbd>Enter</kbd> OK &bull; <kbd>Space</kbd> Home &bull; <kbd>B</kbd> Back &bull; <kbd>P</kbd> Play
         </footer>
     </main>
 
