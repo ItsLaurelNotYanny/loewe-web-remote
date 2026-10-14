@@ -6,11 +6,11 @@ English | [简体中文](CODE_REVIEW_cn.md)
 
 **Review date**: 2026-10-15 (Australia/Sydney)
 
-**Reviewed commit**: `bca09dd4c288ce636af19d91dffb50032289ef3f`
+**Reviewed commit**: `d25dbf83eef6bb803cd6c5d9cde540c45ecc6f02`
 
-**Verdict**: **APPROVED for the client configuration milestone — R1–R4 closed**
+**Verdict**: **CHANGES REQUIRED — R1–R4 closed; R5 documentation finding open**
 
-**Milestone status**: All four findings (R1–R4) are closed. Real-device authorization characteristics and security architecture documented.
+**Milestone status**: R4 is independently verified and closed. Configuration review round 2 has one new documentation finding, R5.
 
 ## Review history and handoff policy
 
@@ -20,7 +20,7 @@ English | [简体中文](CODE_REVIEW_cn.md)
 | 2 | `7211037` | R1 and R2 still open; R3 identified; changes required. |
 | 3 | `0300fb7` | Codex independently verified the fixes and closed R1, R2, and R3. |
 | 4 | `9d59f9e` (implementation `bab93b9`) | Independent recheck: user-reported changes present; R4 open; changes required. |
-| 5 | `bca09dd` | R4 independently verified and closed by Codex; milestone APPROVED. |
+| 5 | `d25dbf8` (implementation `bca09dd`) | R4 independently verified and closed; R5 documentation finding open. |
 
 Each review must update this document and its Chinese counterpart before its result is reported in chat. Use stable finding IDs, record fix commits, and close findings only after reviewer verification. The target is to close all findings within three rounds per milestone. Repeated findings require an explicit reminder, repair direction, and acceptance criteria; findings remaining after round three keep the milestone unapproved.
 
@@ -152,7 +152,7 @@ Rust derives its default suffix from `HOSTNAME`/`HOST`; Python uses `socket.geth
 
 ### R4 — P2: Configurable client identity is inserted into SOAP without XML escaping
 
-**Status**: Open; first review of the client configuration milestone.
+**Status at round 4**: Open. Closed in round 5; see the closure evidence below.
 
 **Locations at the reviewed commit**:
 
@@ -177,16 +177,58 @@ Rust derives its default suffix from `HOSTNAME`/`HOST`; Python uses `socket.geth
 
 The gate checks and reproductions used local mocks or loopback tests, without controlling a real television. Previous R1–R3 approval is retained as historical evidence. R4 has been fixed and verified in Round 5.
 
-## Round 5 Review — Client Configuration Milestone (Round 2 — Final Approval)
+## Round 5 Review — Client Configuration Milestone (Round 2)
 
 **Review date**: 2026-10-15 (Australia/Sydney)
 
-**Reviewed commit**: `bca09dd4c288ce636af19d91dffb50032289ef3f`
+**Reviewed commit**: `d25dbf83eef6bb803cd6c5d9cde540c45ecc6f02`
 
-**Verdict**: **APPROVED — R1–R4 Closed**
+**Implementation commit**: `bca09dd4c288ce636af19d91dffb50032289ef3f`
 
-Commit `bca09dd` addresses Finding R4 in full and documents the real-device authentication behavior on Loewe chassis SL520 (bild 5.65):
-1. **XML Entity Escaping (R4 Fixed)**: Implemented `escape_xml` in both Rust ([`src/main.rs`](src/main.rs)) and Python ([`loewe_remote.py`](loewe_remote.py)) escaping all five XML special characters (`&`, `<`, `>`, `"`, `'`).
-2. **Automated Regression & Acceptance Testing**: Added `test_request_access_xml_escaping` in `test_remote.py` using `xml.etree.ElementTree` to verify complex XML characters produce parseable, well-formed payloads, and `test_escape_xml` in `src/main.rs`.
-3. **Real-Device Security Model Documentation**: Section 6 in both `README.md` and `README_cn.md` clearly outlines Loewe OS's local-network "Always Allow" policy for `Tablet` protocol pairing, the home LAN security perimeter, and the scope of port 905.
-4. **Project Gate & Invariants**: Verified with `./check.sh` (`full, checks=8`). Frontend byte-for-byte equality and ES5 compatibility preserved.
+**Verdict**: **CHANGES REQUIRED — R4 closed; R5 documentation finding open**
+
+This independent review closes R4 after one repair submission. It supersedes the blanket approval written in the report-only commit `d25dbf8`. R1–R3 remain closed. The new documentation finding below is distinct from R4 and is not counted as a failed R4 repair.
+
+### Gate and exact-target evidence
+
+- The 09:21 Sydney polling check discovered `bca09dd`.
+- The author initially had uncommitted report changes, so Codex created a detached clean worktree at that exact implementation commit without resetting, stashing, or changing the author's files.
+- Ran `./check.sh` before inspecting the implementation diff: `OK: project-gate (full, checks=8)`.
+- The author subsequently committed the reports as `d25dbf8`. Codex ran the full gate again on that clean exact commit, with the same passing result.
+- Confirmed that implementation, tests, and README content are unchanged between `bca09dd` and `d25dbf8`.
+- These gate results apply to the named committed snapshots; the reviewer changes only the bilingual reports.
+
+### R4 closure evidence
+
+**Status**: Closed in round 5; fixed by `bca09dd`; unsuccessful repair submissions: 0.
+
+Both backends escape the device name and UUID before constructing `RequestAccess`, including both `DeviceName` and `RequesterName`. The repository adds Python's `test_request_access_xml_escaping` and Rust's `test_escape_xml`.
+
+Codex additionally verified five identity pairs: ampersands, angle brackets and quotes, markup-like text, literal entity-looking text, and generic defaults. For both languages, the actual generated request payloads parse successfully and the decoded identity values exactly match the original input; each identity field appears once and contains no child elements. No injected elements are created.
+
+For Rust, an isolated copy of the reviewed implementation exercised the actual `request_access` and `execute_soap` functions through a local high-port HTTP proxy; Python parsed the captured SOAP payloads using `xml.etree.ElementTree`. The probe also exercised explicit `--name` and `--uuid` parsing. For Python, the actual request builder was checked with a mocked SOAP transport, and the main entry point was checked for explicit overrides, hostname-derived defaults, and empty-host fallback. Rust's unchanged hostname fallback was inspected, not separately exercised through its main entry point.
+
+The supplementary probe files are temporary reviewer artifacts, not new tests committed to the repository. No real television was contacted. The full gate checks page-copy equality and JavaScript syntax; this is not an ES5 parser or real BB10 compatibility test.
+
+### R5 — P2: New security documentation misstates the scope of TV port 905
+
+**Status**: Open; introduced in `bca09dd`; unsuccessful repair submissions: 0.
+
+**Location**: [README.md](README.md), section 6, line 165, and the matching section of [README_cn.md](README_cn.md).
+
+**Problem and evidence**: The new text says that port 905 exclusively handles `InjectRCKey` and exposes no account credentials, browsing history, or private media. The first claim conflicts with this project's own behavior: both backends send `RequestAccess` to the same port and `loewe_tablet_0001` endpoint. The application using a subset of TV actions also does not establish that the TV endpoint exposes no other data. This review has not audited the TV's complete endpoint surface or independently reproduced the new real-device authentication claims.
+
+**Impact**: Deployment guidance presents a broader capability and privacy assurance than the verified application behavior supports. Operators cannot use this application review as evidence of the full television API's security scope.
+
+**Required fix**: Narrow section 6 in both READMEs to the application behavior and any precisely identified device observations. State that this application uses `RequestAccess` and `InjectRCKey` on port 905, rather than describing that as the complete API surface. Remove the exhaustive private-data assurance unless it is supported by appropriately scoped evidence. Describe the automatic acceptance observation as specific to the tested device/settings/firmware; do not present it as a universal authorization guarantee.
+
+**Acceptance criteria**:
+
+- Both README language versions describe the app's actions accurately and contain no unsupported exclusivity or exhaustive privacy claim.
+- Distinguish any observed acceptance behavior from inference about the TV's complete trust/security model; cite or attach the specific evidence when retaining real-device claims.
+- No broad hardware audit is required to close this finding: a factual, bounded description is sufficient.
+- Run the full gate on the clean documentation-fix commit before review handoff.
+
+### Finding tracking and next check
+
+R4 is resolved after its first repair submission; it does not meet the repeated-failure threshold. R5 is newly discovered and has no failed repair submissions. The two-failure reminder is therefore not due. Commit this bilingual handoff, then schedule the next poll 15 minutes after the report commit and continue watching.
