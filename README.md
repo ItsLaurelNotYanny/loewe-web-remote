@@ -66,14 +66,16 @@ Designed with dual-tier device support:
 
 ## 3. Quick Start
 
+The server can run on any Linux host (PC, Raspberry Pi, NAS, or container) in the same local network as the television. Specify your Loewe TV's LAN IP and MAC address:
+
 ### Option A: Pure Python Server (Zero Dependencies)
 
 ```bash
-# Run with defaults (TV IP: 192.168.3.226, Port: 8080)
-python3 loewe_remote.py
+# Run with TV IP and MAC parameters
+python3 loewe_remote.py --tv-ip <TV_IP> --mac <TV_MAC> --port 8080
 
-# Specify custom parameters
-python3 loewe_remote.py --tv-ip 192.168.3.226 --mac f8:a2:d6:67:0f:f0 --port 8080
+# Optional custom device name and UUID
+python3 loewe_remote.py --tv-ip <TV_IP> --name "My-Remote"
 ```
 
 ### Option B: Standalone Rust Binary
@@ -82,8 +84,11 @@ python3 loewe_remote.py --tv-ip 192.168.3.226 --mac f8:a2:d6:67:0f:f0 --port 808
 # Build release binary
 cargo build --release
 
-# Run standalone binary
-./target/release/loewe-web-remote --tv-ip 192.168.3.226 --port 8080
+# Run standalone binary with TV IP and MAC
+./target/release/loewe-web-remote --tv-ip <TV_IP> --mac <TV_MAC> --port 8080
+
+# Optional custom device name and UUID
+./target/release/loewe-web-remote --tv-ip <TV_IP> --name "My-Remote"
 ```
 
 Access the remote in any browser at:
@@ -93,11 +98,48 @@ Access the remote in any browser at:
 
 ## 4. Verification and Testing
 
-Execute the automated test suite:
+Install this clone's versioned Git hooks once:
 
 ```bash
-python3 test_remote.py -v
+./scripts/install-hooks.sh
 ```
+
+Run the mechanical gate:
+
+```bash
+./check.sh --fast  # Before commits: syntax, format, build, lint, and page consistency.
+./check.sh         # Before push/review/handoff: fast checks plus Rust and Python tests.
+```
+
+The pre-commit hook runs fast checks; pre-push runs full checks. The commit hook
+requires all nonignored source changes staged, and the push hook checks a clean
+HEAD only. They reject mismatched snapshots without stashing or changing source.
+A new clone needs hook installation again; the author agent installs it through
+project-gate. Hooks can be bypassed; this repository currently has no CI workflow.
+Reviewers independently run the full gate on the actual review target.
+
+Required tools: Bash, Git, Python 3, Node.js, and Rust with rustfmt/Clippy. Cargo
+uses the tracked lockfile, runs offline, and stores gate artifacts separately in
+`target/project-gate`. On a new machine, provision the Rust
+dependencies separately with `cargo fetch --locked` before running the gate.
+Successful runs print one line; failed runs print a bounded diagnostic and the
+path to a complete temporary log.
+
+Python checks use the standard library for syntax and indentation, without adding
+runtime dependencies. Both page copies must match byte for byte. Node checks the
+inline JavaScript syntax; ES5 compatibility and actual browser/device behavior
+still require semantic/manual verification. Python formatting beyond indentation,
+Python type checking, sanitizers, and dependency audits are not configured.
+Full checks fail if either language discovers zero tests. Existing Python tests
+use mocked TV transports and a local loopback HTTP server.
+
+For a Python-only test run:
+
+```bash
+python3 -B test_remote.py -v
+```
+
+See [AGENTS.md](AGENTS.md) for author/reviewer rules.
 
 ## 5. Server Roles and Webpage Delivery
 

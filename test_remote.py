@@ -14,8 +14,8 @@ class TestLoeweController(unittest.TestCase):
         self.controller = LoeweController(
             tv_ip="192.168.3.226",
             mac_address="f8:a2:d6:67:0f:f0",
-            client_uuid="synology-ds220-loewe",
-            device_name="Synology-DS220",
+            client_uuid="loewe-web-remote",
+            device_name="Loewe-Web-Remote",
             fcid="2",
         )
 

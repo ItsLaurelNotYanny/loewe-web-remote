@@ -22,8 +22,8 @@ use tracing::{info, warn};
 pub const DEFAULT_TV_IP: &str = "192.168.3.226";
 pub const DEFAULT_MAC_ADDRESS: &str = "f8:a2:d6:67:0f:f0";
 pub const DEFAULT_FCID: &str = "2";
-pub const DEFAULT_CLIENT_UUID: &str = "synology-ds220-loewe";
-pub const DEFAULT_DEVICE_NAME: &str = "Synology-DS220";
+pub const DEFAULT_CLIENT_UUID: &str = "loewe-web-remote";
+pub const DEFAULT_DEVICE_NAME: &str = "Loewe-Web-Remote";
 pub const BROADCAST_IP: &str = "255.255.255.255";
 pub const WOL_PORT: u16 = 9;
 
@@ -44,6 +44,15 @@ pub struct CliArgs {
 
     #[arg(long, default_value = "0.0.0.0", help = "Web server bind address")]
     pub bind: String,
+
+    #[arg(
+        long,
+        help = "Client device name displayed on TV screen during pairing"
+    )]
+    pub name: Option<String>,
+
+    #[arg(long, help = "Client UUID used for TV pairing registration")]
+    pub uuid: Option<String>,
 }
 
 #[derive(Clone)]
@@ -129,7 +138,10 @@ pub fn wake_on_lan(mac: &str, tv_ip: &str) -> bool {
     let mut targets = vec![format!("{}:{}", BROADCAST_IP, WOL_PORT)];
     let parts: Vec<&str> = tv_ip.split('.').collect();
     if parts.len() == 4 {
-        targets.push(format!("{}.{}.{}.255:{}", parts[0], parts[1], parts[2], WOL_PORT));
+        targets.push(format!(
+            "{}.{}.{}.255:{}",
+            parts[0], parts[1], parts[2], WOL_PORT
+        ));
     }
 
     let mut sent = false;
@@ -255,7 +267,9 @@ pub async fn request_access(state: &AppState) -> Result<(String, String), String
             return Err("AccessStatus Denied: TV rejected remote pairing".to_string());
         }
         if xml.contains("Pending") {
-            return Err("AccessStatus Pending: Pairing confirmation required on TV screen".to_string());
+            return Err(
+                "AccessStatus Pending: Pairing confirmation required on TV screen".to_string(),
+            );
         }
         return Err(format!("Invalid RequestAccess response from TV: {}", xml));
     }
@@ -327,7 +341,10 @@ pub async fn inject_key(state: &AppState, key_code: &str, alphabet: &str) -> Res
         Ok(resp) if is_valid_key_response(&resp) => Ok(()),
         first_res => {
             // Re-authenticate and retry exactly once
-            warn!("First key injection attempt failed ({:?}), re-authenticating...", first_res);
+            warn!(
+                "First key injection attempt failed ({:?}), re-authenticating...",
+                first_res
+            );
             let (new_cid, new_fcid) = match request_access(state).await {
                 Ok(pair) => pair,
                 Err(e) => {
@@ -348,12 +365,11 @@ pub async fn inject_key(state: &AppState, key_code: &str, alphabet: &str) -> Res
             // 3. Retry attempt: CRUCIAL - MUST VERIFY RETRY RESPONSE TO PREVENT FALSE POSITIVE SUCCESS!
             match execute_soap(&state.http_client, &state.tv_ip, "InjectRCKey", &retry_body).await {
                 Ok(retry_resp) if is_valid_key_response(&retry_resp) => Ok(()),
-                Ok(retry_resp) => {
-                    Err(format!("TV rejected key injection on retry: {}", retry_resp))
-                }
-                Err(e) => {
-                    Err(format!("Network error on key injection retry: {}", e))
-                }
+                Ok(retry_resp) => Err(format!(
+                    "TV rejected key injection on retry: {}",
+                    retry_resp
+                )),
+                Err(e) => Err(format!("Network error on key injection retry: {}", e)),
             }
         }
     }
@@ -448,11 +464,29 @@ async fn main() {
     tracing_subscriber::fmt::init();
     let args = CliArgs::parse();
 
+    let hostname = std::env::var("HOSTNAME")
+        .or_else(|_| std::env::var("HOST"))
+        .unwrap_or_default();
+
+    let device_name = match args.name {
+        Some(name) => name,
+        None if !hostname.is_empty() => format!("{}-{}", DEFAULT_DEVICE_NAME, hostname),
+        None => DEFAULT_DEVICE_NAME.to_string(),
+    };
+
+    let client_uuid = match args.uuid {
+        Some(uuid) => uuid,
+        None if !hostname.is_empty() => {
+            format!("{}-{}", DEFAULT_CLIENT_UUID, hostname.to_lowercase())
+        }
+        None => DEFAULT_CLIENT_UUID.to_string(),
+    };
+
     let state = AppState {
         tv_ip: args.tv_ip.clone(),
         mac_address: args.mac.clone(),
-        client_uuid: DEFAULT_CLIENT_UUID.to_string(),
-        device_name: DEFAULT_DEVICE_NAME.to_string(),
+        client_uuid,
+        device_name,
         session: Arc::new(Mutex::new(SessionInfo {
             client_id: None,
             fcid: DEFAULT_FCID.to_string(),
@@ -483,9 +517,7 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(bind_addr)
         .await
         .expect("Failed to bind TCP listener");
-    axum::serve(listener, app)
-        .await
-        .expect("Server error");
+    axum::serve(listener, app).await.expect("Server error");
 }
 
 #[cfg(test)]

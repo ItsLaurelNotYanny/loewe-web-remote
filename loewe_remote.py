@@ -30,8 +30,8 @@ VERSION = "1.0.0"
 DEFAULT_TV_IP = "192.168.3.226"
 DEFAULT_MAC_ADDRESS = "f8:a2:d6:67:0f:f0"
 DEFAULT_FCID = "2"
-DEFAULT_CLIENT_UUID = "synology-ds220-loewe"
-DEFAULT_DEVICE_NAME = "Synology-DS220"
+DEFAULT_CLIENT_UUID = "loewe-web-remote"
+DEFAULT_DEVICE_NAME = "Loewe-Web-Remote"
 BROADCAST_IP = "255.255.255.255"
 WOL_PORT = 9
 
@@ -980,11 +980,19 @@ def main():
     parser.add_argument("--mac", default=DEFAULT_MAC_ADDRESS, help=f"Loewe TV MAC address (default: {DEFAULT_MAC_ADDRESS})")
     parser.add_argument("--port", type=int, default=8080, help="Web server port (default: 8080)")
     parser.add_argument("--bind", default="0.0.0.0", help="Web server bind address (default: 0.0.0.0)")
+    parser.add_argument("--name", default=None, help="Client device name displayed on TV screen during pairing")
+    parser.add_argument("--uuid", default=None, help="Client UUID used for TV pairing registration")
     args = parser.parse_args()
+
+    hostname = socket.gethostname() if hasattr(socket, "gethostname") else ""
+    device_name = args.name if args.name else (f"{DEFAULT_DEVICE_NAME}-{hostname}" if hostname else DEFAULT_DEVICE_NAME)
+    client_uuid = args.uuid if args.uuid else (f"{DEFAULT_CLIENT_UUID}-{hostname.lower()}" if hostname else DEFAULT_CLIENT_UUID)
 
     controller = LoeweController(
         tv_ip=args.tv_ip,
         mac_address=args.mac,
+        client_uuid=client_uuid,
+        device_name=device_name,
     )
 
     class ThreadedServer(socketserver.ThreadingMixIn, http.server.HTTPServer):

@@ -66,24 +66,29 @@
 
 ## 3. 快速启动指南
 
+服务端可运行在与电视处于同一局域网的任意 Linux 主机（PC、树莓派、NAS 或容器）上。请指定目标 Loewe 电视的局域网 IP 与 MAC 地址：
+
 ### 方案 A：纯 Python 单文件运行（免装依赖）
 
 ```bash
-# Run with defaults (TV IP: 192.168.3.226, Port: 8080)
-python3 loewe_remote.py
+# 传入电视 IP 与 MAC 参数启动
+python3 loewe_remote.py --tv-ip <TV_IP> --mac <TV_MAC> --port 8080
 
-# Specify custom parameters
-python3 loewe_remote.py --tv-ip 192.168.3.226 --mac f8:a2:d6:67:0f:f0 --port 8080
+# 可选自定义配对设备名称
+python3 loewe_remote.py --tv-ip <TV_IP> --name "My-Remote"
 ```
 
 ### 方案 B：独立 Rust 单二进制运行
 
 ```bash
-# Build release binary
+# 构建优化发行包
 cargo build --release
 
-# Run standalone binary
-./target/release/loewe-web-remote --tv-ip 192.168.3.226 --port 8080
+# 传入电视 IP 与 MAC 参数运行单二进制文件
+./target/release/loewe-web-remote --tv-ip <TV_IP> --mac <TV_MAC> --port 8080
+
+# 可选自定义配对设备名称
+./target/release/loewe-web-remote --tv-ip <TV_IP> --name "My-Remote"
 ```
 
 启动后在任意手机、电脑或 BlackBerry Passport 浏览器中访问：
@@ -91,13 +96,34 @@ cargo build --release
 
 ---
 
-## 4. 自动化测试与验证
+## 4. 验证与测试
 
-执行单元测试验证套件：
+为当前 clone 安装一次纳入版本管理的 Git hook：
 
 ```bash
-python3 test_remote.py -v
+./scripts/install-hooks.sh
 ```
+
+运行机械检查 gate：
+
+```bash
+./check.sh --fast  # Before commits: syntax, format, build, lint, and page consistency.
+./check.sh         # Before push/review/handoff: fast checks plus Rust and Python tests.
+```
+
+pre-commit 自动运行快档，pre-push 自动运行完整档。提交 hook 要求所有未忽略的源码改动已暂存；推送 hook 只检查干净的 HEAD。快照不一致时拒绝，不 stash、不修改源码。新 clone 需重新安装 hook，由作者 agent 通过 project-gate 安装。hook 可绕过；本仓库当前没有 CI 工作流。评审者须对实际目标独立运行完整 gate。
+
+必需工具：Bash、Git、Python 3、Node.js，以及带 rustfmt/Clippy 的 Rust。Cargo 使用已跟踪的锁文件离线运行，gate 构建产物单独放在 `target/project-gate`；新机器先单独执行 `cargo fetch --locked` 准备 Rust 依赖。成功仅输出一行；失败输出截断诊断及完整临时日志路径。
+
+Python 检查使用标准库验证语法和缩进，不添加运行时依赖。两份网页须逐字节一致。Node 验证内嵌 JavaScript 语法；ES5 兼容及真实浏览器/设备行为仍需语义/人工验证。超出缩进的 Python 格式化、Python 类型检查、sanitizer 和依赖 audit 尚未配置。完整档在任一语言发现零测试时失败。现有 Python 测试使用 mock 电视传输及本地回环 HTTP 服务。
+
+仅运行 Python 测试：
+
+```bash
+python3 -B test_remote.py -v
+```
+
+作者/评审者规则见 [AGENTS_cn.md](AGENTS_cn.md)。
 
 ## 5. 服务端分工与网页交付
 

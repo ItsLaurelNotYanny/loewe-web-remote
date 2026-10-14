@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Project-gate: require the checked worktree to match the staged snapshot.
+set -euo pipefail
+cd -- "$(git rev-parse --show-toplevel)"
+verify_snapshot() {
+    if ! git diff --quiet --exit-code -- || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+        echo "ERROR: project-gate requires all source changes staged; use snapshot-aware tooling for partial staging." >&2
+        exit 2
+    fi
+}
+[ -x ./check.sh ] || { echo "ERROR: executable check.sh is required" >&2; exit 2; }
+verify_snapshot
+TREE=$(git write-tree)
+./check.sh --fast
+verify_snapshot
+[ "$(git write-tree)" = "$TREE" ] || { echo "ERROR: staged snapshot changed during checks" >&2; exit 2; }
