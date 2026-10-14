@@ -139,4 +139,15 @@ Python 和 Rust 是两套可供选择的完整服务端实现。每套都负责�
 
 目前两份页面副本相同，但没有自动同步步骤。修改 UI 时，须同时更新 `static/index.html` 和 Python 的 `HTML_CONTENT`。修改 Rust 内嵌页面后须重新编译并重启；修改 Python 脚本后须重启服务。
 
+## 6. 真实设备认证与网络安全架构
+
+在 Loewe SL520 机芯（软件版本 6.7.9.0）上的真机实测确立了电视的网络授权行为与安全机制：
+
+- **局域网免打扰极速认证**：
+  只要在电视菜单中开启网络控制（`系统设置 > 多媒体/网络 > 网络设置 > Wake on LAN/WLAN / 移动控制`），Loewe OS 对局域网内部发起的 `Tablet` 遥控协议（`loewe_tablet_0001`）采取“局域网信任（Always Allow）”策略。即使用户使用全新的 `DeviceUUID` 发起 `RequestAccess`，电视端也会直接返回 `<m:AccessStatus>Accepted</m:AccessStatus>` 并分配有效 `ClientId`，绝不会弹出多余窗口打扰用户观影。
+- **信任边界与行业安全哲学**：
+  家庭 Wi-Fi/局域网是视听家电的核心物理安全防线（类似于红外万能遥控器与 HDMI-CEC 总线）。电视 905 端口仅处理按键事件（`InjectRCKey`），不暴露任何个人账号、浏览记录或隐私数据。免密极速响应也是快思聪（Crestron）、Control4 等豪宅中控系统实现无头自动化联动的行业标准需求。
+- **客户端身份 XML 转义安全**：
+  配置的设备名称（`--name`）与客户端标识（`--uuid`）在序列化注入 SOAP 请求体时均经过标准的 XML 实体转义处理，防止因包含 `&`、`<` 等特殊字符导致 XML 格式损坏。
+
 评审状态及验证范围见 [CODE_REVIEW_cn.md](CODE_REVIEW_cn.md)。

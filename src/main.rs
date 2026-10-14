@@ -250,14 +250,24 @@ pub fn is_valid_access_response(text: &str) -> bool {
         && text.contains("LRemoteClient")
 }
 
+pub fn escape_xml(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&apos;")
+}
+
 pub async fn request_access(state: &AppState) -> Result<(String, String), String> {
+    let safe_name = escape_xml(&state.device_name);
+    let safe_uuid = escape_xml(&state.client_uuid);
     let body = format!(
         r#"<m:fcid>0</m:fcid>
       <m:DeviceType>Tablet</m:DeviceType>
       <m:DeviceName>{}</m:DeviceName>
       <m:DeviceUUID>{}</m:DeviceUUID>
       <m:RequesterName>{}</m:RequesterName>"#,
-        state.device_name, state.client_uuid, state.device_name
+        safe_name, safe_uuid, safe_name
     );
 
     let xml = execute_soap(&state.http_client, &state.tv_ip, "RequestAccess", &body).await?;
@@ -574,5 +584,14 @@ mod tests {
             </m:RequestAccessResponse>
         </SOAP-ENV:Body></SOAP-ENV:Envelope>"#;
         assert!(!is_valid_access_response(pending_xml));
+    }
+
+    #[test]
+    fn test_escape_xml() {
+        assert_eq!(
+            escape_xml("Living & Dining <Room> \"1\" 'TV'"),
+            "Living &amp; Dining &lt;Room&gt; &quot;1&quot; &apos;TV&apos;"
+        );
+        assert_eq!(escape_xml("Normal-Name-123"), "Normal-Name-123");
     }
 }

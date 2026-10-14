@@ -155,4 +155,15 @@ The browser executes the page's JavaScript. The chosen server translates its API
 
 The two page copies currently match, but there is no automatic synchronization step. Update both `static/index.html` and Python's `HTML_CONTENT` when changing the UI. Rebuild and restart Rust after changes to its embedded page; restart Python after changes to its script.
 
+## 6. Real-Device Authentication and Security Architecture
+
+Real-device exploration on Loewe chassis SL520 (software version 6.7.9.0) established the television's network authorization behavior and security characteristics:
+
+- **Zero-Friction Local Authentication**:
+  Once network control (`System Settings > Multimedia / Network > Network settings > Wake on LAN/WLAN / Mobile Control`) is enabled on the television, Loewe OS adopts a local-network trusted policy ("Always Allow") for the `Tablet` protocol (`loewe_tablet_0001`). When `RequestAccess` is submitted with a fresh `DeviceUUID`, the television immediately returns `<m:AccessStatus>Accepted</m:AccessStatus>` and an active `ClientId` without interrupting the viewer with an on-screen dialog.
+- **Trust Boundary and Security Model**:
+  The home Wi-Fi/LAN represents the primary security perimeter, following standard home appliance design (analogous to line-of-sight infrared remotes and physical HDMI-CEC buses). Port 905 exclusively handles key injection events (`InjectRCKey`); it exposes no user account credentials, browsing history, or private media. Seamless local access is essential for high-end home automation systems (such as Crestron and Control4) that operate headless.
+- **Client Identity Safety**:
+  Configured client names (`--name`) and UUIDs (`--uuid`) are safely XML-escaped when serialized into SOAP envelopes, protecting against malformed XML syntax when using special characters (such as `&` or `<`).
+
 For review status and validation scope, see [CODE_REVIEW.md](CODE_REVIEW.md).

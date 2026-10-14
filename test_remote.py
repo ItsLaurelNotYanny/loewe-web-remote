@@ -110,6 +110,53 @@ class TestLoeweController(unittest.TestCase):
         self.assertIsNone(self.controller.client_id)
 
     @patch.object(LoeweController, "_soap_request")
+    def test_request_access_xml_escaping(self, mock_soap):
+        """R4 acceptance test: Special characters in device_name and client_uuid must be safely XML-escaped."""
+        import xml.etree.ElementTree as ET
+
+        self.controller.device_name = 'Living & Dining <Room> "Main"'
+        self.controller.client_uuid = "client&uuid<1>"
+
+        mock_soap.return_value = (
+            b'<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">'
+            b'<SOAP-ENV:Body>'
+            b'<m:RequestAccessResponse xmlns:m="urn:loewe.de:RemoteTV:Tablet">'
+            b'<m:fcid>0</m:fcid>'
+            b'<m:ClientId>LRemoteClient-0-special</m:ClientId>'
+            b'<m:AccessStatus>Accepted</m:AccessStatus>'
+            b'</m:RequestAccessResponse>'
+            b'</SOAP-ENV:Body></SOAP-ENV:Envelope>'
+        )
+
+        cid, fcid, status = self.controller.request_access()
+        self.assertEqual(cid, "LRemoteClient-0-special")
+        mock_soap.assert_called_once()
+        action, body = mock_soap.call_args[0]
+        self.assertEqual(action, "RequestAccess")
+
+        envelope = f"""<?xml version="1.0" encoding="utf-8"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" xmlns:m="urn:loewe.de:RemoteTV:Tablet">
+  <s:Body>
+    <m:RequestAccess>
+      {body}
+    </m:RequestAccess>
+  </s:Body>
+</s:Envelope>"""
+        root = ET.fromstring(envelope)
+        ns = {"m": "urn:loewe.de:RemoteTV:Tablet"}
+        dev_name_el = root.find(".//m:DeviceName", ns)
+        dev_uuid_el = root.find(".//m:DeviceUUID", ns)
+        req_name_el = root.find(".//m:RequesterName", ns)
+
+        self.assertIsNotNone(dev_name_el)
+        self.assertIsNotNone(dev_uuid_el)
+        self.assertIsNotNone(req_name_el)
+
+        self.assertEqual(dev_name_el.text, 'Living & Dining <Room> "Main"')
+        self.assertEqual(dev_uuid_el.text, "client&uuid<1>")
+        self.assertEqual(req_name_el.text, 'Living & Dining <Room> "Main"')
+
+    @patch.object(LoeweController, "_soap_request")
     def test_request_access_network_error_returns_none(self, mock_soap):
         """Initial handshake anomaly: Network exception handled gracefully."""
         mock_soap.side_effect = urllib.error.URLError("Connection timed out")

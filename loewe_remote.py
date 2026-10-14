@@ -811,17 +811,30 @@ class LoeweController:
             and "LRemoteClient" in text
         )
 
+    @staticmethod
+    def escape_xml(s: str) -> str:
+        """Escapes XML special characters in string values."""
+        return (
+            s.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace('"', "&quot;")
+            .replace("'", "&apos;")
+        )
+
     def request_access(self) -> Tuple[Optional[str], str, Optional[str]]:
         """Executes RequestAccess to obtain an authenticated ClientId.
 
         Safely catches network exceptions, validates AccessStatus and ClientId,
         and enforces fallback to DEFAULT_FCID ('2') when TV returns '0'.
         """
+        safe_name = self.escape_xml(self.device_name)
+        safe_uuid = self.escape_xml(self.client_uuid)
         body = f"""<m:fcid>0</m:fcid>
       <m:DeviceType>Tablet</m:DeviceType>
-      <m:DeviceName>{self.device_name}</m:DeviceName>
-      <m:DeviceUUID>{self.client_uuid}</m:DeviceUUID>
-      <m:RequesterName>{self.device_name}</m:RequesterName>"""
+      <m:DeviceName>{safe_name}</m:DeviceName>
+      <m:DeviceUUID>{safe_uuid}</m:DeviceUUID>
+      <m:RequesterName>{safe_name}</m:RequesterName>"""
 
         try:
             xml_data = self._soap_request("RequestAccess", body)
