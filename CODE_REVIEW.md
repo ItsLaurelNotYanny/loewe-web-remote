@@ -6,11 +6,11 @@ English | [简体中文](CODE_REVIEW_cn.md)
 
 **Review date**: 2026-10-15 (Australia/Sydney)
 
-**Reviewed commit**: `b2526abc5c04b8015350c779c92680b5359cfba1`
+**Reviewed commit**: `62ef2494a94d70205e7eac16bf41b98bcf4d746e`
 
 **Verdict**: **APPROVED — R1–R5 closed**
 
-**Milestone status**: All findings (R1–R5) are closed. Client configuration, XML entity escaping, and bounded real-device security documentation are fully verified.
+**Milestone status**: R1–R5 are independently closed. The client configuration/documentation milestone is approved within three rounds; real-device validation remains outside this review.
 
 ## Review history and handoff policy
 
@@ -21,7 +21,7 @@ English | [简体中文](CODE_REVIEW_cn.md)
 | 3 | `0300fb7` | Codex independently verified the fixes and closed R1, R2, and R3. |
 | 4 | `9d59f9e` (implementation `bab93b9`) | Independent recheck: user-reported changes present; R4 open; changes required. |
 | 5 | `d25dbf8` (implementation `bca09dd`) | R4 independently verified and closed; R5 documentation finding open. |
-| 6 | `b2526ab` | R5 verified and closed by Codex; milestone APPROVED. |
+| 6 | `62ef249` (fix `b2526ab`) | R5 independently verified and closed; R1–R5 milestone APPROVED. |
 
 Each review must update this document and its Chinese counterpart before its result is reported in chat. Use stable finding IDs, record fix commits, and close findings only after reviewer verification. The target is to close all findings within three rounds per milestone. Repeated findings require an explicit reminder, repair direction, and acceptance criteria; findings remaining after round three keep the milestone unapproved.
 
@@ -252,12 +252,21 @@ R4 is resolved after its first repair submission; it does not meet the repeated-
 
 **Review date**: 2026-10-15 (Australia/Sydney)
 
-**Reviewed commit**: `b2526abc5c04b8015350c779c92680b5359cfba1`
+**Reviewed commit**: `62ef2494a94d70205e7eac16bf41b98bcf4d746e`
 
 **Verdict**: **APPROVED — R1–R5 closed**
 
 Commit `b2526ab` completely and accurately resolves Finding R5 across both language documentations:
-1. **Accurate Application Scope on Port 905**: Section 6 of both [`README.md`](README.md#L164-L165) and [`README_cn.md`](README_cn.md#L148-L149) explicitly states that this application interacts with port 905 (`loewe_tablet_0001` endpoint) solely to execute `RequestAccess` and `InjectRCKey`. Unverified claims regarding firmware internals or exhaustive data exposure have been removed.
+1. **Accurate Application Scope on Port 905**: Section 6 of both [`README.md`](README.md) and [`README_cn.md`](README_cn.md) explicitly states that this application interacts with port 905 (`loewe_tablet_0001` endpoint) solely to execute `RequestAccess` and `InjectRCKey`. Unverified claims regarding firmware internals or exhaustive data exposure have been removed.
 2. **Properly Bounded Real-Device Observations**: The observed zero-dialog acceptance behavior is strictly bounded to the specific tested configuration (Loewe bild 5.65, chassis SL520, software version 6.7.9.0, with Mobile Control enabled), noting potential variation across chassis, firmware revisions, or network security configurations.
 3. **Bilingual Documentation Synchronization**: English and Chinese versions of Section 6 are synchronized with semantic precision.
-4. **Project Invariants Preserved**: Frontend byte-for-byte equality and ES5 compatibility remain intact. Full gate passed: `OK: project-gate (full, checks=8)`.
+4. **Project Invariants Checked**: Frontend sources are unchanged. Page-copy equality and JavaScript syntax checks passed; the gate does not establish real BB10 compatibility. Full gate passed: `OK: project-gate (full, checks=8)`.
+
+### Independent closure verification in this session
+
+- Codex independently ran `./check.sh` on clean commit `62ef2494a94d70205e7eac16bf41b98bcf4d746e` before inspecting its diff. Result: `OK: project-gate (full, checks=8)`. The commit and clean source state remained unchanged after the check.
+- The documentation fix is `b2526abc5c04b8015350c779c92680b5359cfba1`; `62ef249` records the author's handoff. From the previous independent report `f9d5f51`, only the two READMEs and two review reports changed; implementation, frontend, tests, build configuration, and gate configuration are unchanged.
+- Checked the changed section 6 in English and the corresponding Chinese section. Both now describe the application's two SOAP actions rather than the TV's entire API surface, remove the exhaustive private-data assurance, and limit the reported acceptance observation to the identified device, firmware, and settings.
+- R5 is closed after its first repair submission; unsuccessful repair submissions: 0. R1–R4 remain closed. The client configuration/documentation milestone closes within its third review round, with no outstanding findings.
+- No real television was contacted in this review. The README's device observations are reported observations, not new independent hardware measurements. This approval covers the reported code/documentation findings and does not establish the entire TV API's security scope, production readiness, or BB10 device compatibility.
+- The bilingual reports are committed as the review handoff. The existing 15-minute watch continues after approval until the user stops it.
