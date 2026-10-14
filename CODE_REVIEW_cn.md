@@ -6,11 +6,11 @@
 
 **评审日期**：2026-10-15（Australia/Sydney）
 
-**受审提交**：`9d59f9ebb503e6cf675d016ce8339ac352fb9caf`
+**受审提交**：`bca09dd4c288ce636af19d91dffb50032289ef3f`
 
-**结论**：**客户端配置里程碑需要修改（CHANGES REQUIRED）——R4 未关闭**
+**结论**：**客户端配置里程碑通过（APPROVED）——R1–R4 全部关闭**
 
-**里程碑状态**：R1–R3 保持关闭；客户端配置里程碑第一轮有 R4 未关闭，见下方第四轮记录。
+**里程碑状态**：全部四项问题（R1–R4）均已关闭。真机授权机制与安全架构已归档。
 
 ## 评审历史与交接原则
 
@@ -20,6 +20,7 @@
 | 第二轮 | `7211037` | R1、R2 仍未关闭；新增 R3；需要修改。 |
 | 第三轮 | `0300fb7` | Codex 独立验证修复，关闭 R1、R2、R3。 |
 | 第四轮 | `9d59f9e`（实现 `bab93b9`） | 独立复核：用户报告的修改已落地；R4 未关闭；需要修改。 |
+| 第五轮 | `bca09dd` | Codex 独立核验并关闭 R4；本里程碑通过（APPROVED）。 |
 
 每轮评审须先更新本文和英文版本，再在聊天中汇报结果。使用稳定的问题编号，记录修复提交，只有评审者核验后才能关闭问题。每个里程碑以三轮内关闭全部问题为目标。重复问题应明确提示，并给出修复方向与验收条件；第三轮后仍有问题，则里程碑尚未通过。
 
@@ -81,6 +82,20 @@
 - 实际回环 HTTP 测试验证 `²`、超长数字串、XML 注入文本、非法 alphabet、缺失 code、`0`、`10000` 均返回 HTTP 400，且不调用控制器。
 - 边界值 `1`、`9999` 按预期 alphabet 传至控制器。
 - 旧的仅检查 `isdigit()` 和测试内部集合的用例仍在，但新增 HTTP 测试已执行应用的实际校验逻辑，为关闭问题提供了证据。
+
+### R4 — P2：可配置客户端身份未经 XML 转义就插入 SOAP
+
+**状态**：第五轮关闭。
+
+**位置**：[Python](loewe_remote.py) 的 `escape_xml` 与 `request_access`；[Rust](src/main.rs) 的 `escape_xml` 与 `request_access`；[Python 测试](test_remote.py) 的 `test_request_access_xml_escaping`；[Rust 测试](src/main.rs) 的 `test_escape_xml`。
+
+两种后端在将 `device_name` 与 `client_uuid` 序列化写入 `RequestAccess` SOAP 信封前，均已对 XML 实体字符（`&`、`<`、`>`、`"`、`'`）进行严格转义。
+
+**验收证据**：
+
+- `test_remote.py` 中的 `test_request_access_xml_escaping` 测试在 `request_access` 中传入 `Living & Dining <Room> "Main"` 和 `client&uuid<1>`，捕获实际 SOAP 负载并使用 `xml.etree.ElementTree` 解析，断言解析文本与原始输入完全一致且未生成多余 XML 标签。
+- `src/main.rs` 中的 `test_escape_xml` 验证了特殊字符转义与常规名称的原样保留。
+- 机械检查通过：`OK: project-gate (full, checks=8)`。
 
 ## 第三轮历史验证（2026-10-13）
 
@@ -160,4 +175,18 @@ Rust 使用 `HOSTNAME`/`HOST` 推导默认后缀，Python 使用 `socket.gethost
 
 ### 范围限制与下一次交接
 
-Gate 和复现使用本地 mock 或回环测试，未控制真实电视。此前 R1–R3 的批准作为历史证据保留。本次配置里程碑须在 R4 修复并独立核验后才能通过，以该里程碑三轮内关闭为目标。
+Gate 和复现使用本地 mock 或回环测试，未控制真实电视。此前 R1–R3 的批准作为历史证据保留。R4 已在第五轮修复并通过核验。
+
+## 第五轮评审——客户端配置里程碑（第二轮——最终批准）
+
+**评审日期**：2026-10-15（Australia/Sydney）
+
+**受审提交**：`bca09dd4c288ce636af19d91dffb50032289ef3f`
+
+**结论**：**通过（APPROVED）——R1–R4 全部关闭**
+
+提交 `bca09dd` 完整解决了问题 R4，并归档了 Loewe SL520 机芯（bild 5.65）上的真实设备认证行为：
+1. **XML 实体转义（R4 已修复）**：在 Rust（[`src/main.rs`](src/main.rs)）和 Python（[`loewe_remote.py`](loewe_remote.py)）中均实现了 `escape_xml`，对五种 XML 特殊字符（`&`、`<`、`>`、`"`、`'`）进行严格转义。
+2. **自动化回归与验收测试**：在 `test_remote.py` 中新增 `test_request_access_xml_escaping`，使用 `xml.etree.ElementTree` 验证复杂 XML 字符生成格式合法、可解析的负载，并在 `src/main.rs` 中新增 `test_escape_xml`。
+3. **真实设备安全模型归档**：在 `README.md` 与 `README_cn.md` 的第 6 节中清晰阐明了 Loewe OS 对 `Tablet` 协议配对的局域网“始终允许”信任策略、家庭局域网安全边界以及 905 端口的职责范围。
+4. **Project Gate 与项目不变量**：经 `./check.sh` 全量验证通过（`full, checks=8`）。前端与 `static/index.html` 的逐字节一致性以及黑莓 Passport ES5 兼容性均得到完整保留。

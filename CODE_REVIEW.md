@@ -6,11 +6,11 @@ English | [简体中文](CODE_REVIEW_cn.md)
 
 **Review date**: 2026-10-15 (Australia/Sydney)
 
-**Reviewed commit**: `9d59f9ebb503e6cf675d016ce8339ac352fb9caf`
+**Reviewed commit**: `bca09dd4c288ce636af19d91dffb50032289ef3f`
 
-**Verdict**: **CHANGES REQUIRED for the client configuration milestone — R4 open**
+**Verdict**: **APPROVED for the client configuration milestone — R1–R4 closed**
 
-**Milestone status**: R1–R3 remain closed. The client configuration milestone is in its first review round with R4 open; see round 4 below.
+**Milestone status**: All four findings (R1–R4) are closed. Real-device authorization characteristics and security architecture documented.
 
 ## Review history and handoff policy
 
@@ -20,6 +20,7 @@ English | [简体中文](CODE_REVIEW_cn.md)
 | 2 | `7211037` | R1 and R2 still open; R3 identified; changes required. |
 | 3 | `0300fb7` | Codex independently verified the fixes and closed R1, R2, and R3. |
 | 4 | `9d59f9e` (implementation `bab93b9`) | Independent recheck: user-reported changes present; R4 open; changes required. |
+| 5 | `bca09dd` | R4 independently verified and closed by Codex; milestone APPROVED. |
 
 Each review must update this document and its Chinese counterpart before its result is reported in chat. Use stable finding IDs, record fix commits, and close findings only after reviewer verification. The target is to close all findings within three rounds per milestone. Repeated findings require an explicit reminder, repair direction, and acceptance criteria; findings remaining after round three keep the milestone unapproved.
 
@@ -81,6 +82,20 @@ Validation now requires ASCII decimal digits, bounds the raw length to 1–4 bef
 - Real loopback HTTP tests verify HTTP 400 with no controller call for `²`, an oversized digit string, XML injection text, an invalid alphabet, a missing code, `0`, and `10000`.
 - Boundary values `1` and `9999` reach the controller with the expected alphabet.
 - The old test that checks only `isdigit()` and a test-local set remains, but the new HTTP tests exercise application validation and provide the closure evidence.
+
+### R4 — P2: Configurable client identity is inserted into SOAP without XML escaping
+
+**Status**: Closed in round 5.
+
+**Locations**: [Python](loewe_remote.py), `escape_xml` and `request_access`; [Rust](src/main.rs), `escape_xml` and `request_access`; [Python tests](test_remote.py), `test_request_access_xml_escaping`; [Rust tests](src/main.rs), `test_escape_xml`.
+
+Both backends now escape XML entity characters (`&`, `<`, `>`, `"`, `'`) in `device_name` and `client_uuid` before serializing them into the `RequestAccess` SOAP envelope.
+
+**Acceptance evidence**:
+
+- `test_remote.py` test `test_request_access_xml_escaping` exercises `request_access` with `Living & Dining <Room> "Main"` and `client&uuid<1>`, captures the actual SOAP payload, parses it with `xml.etree.ElementTree`, and asserts that decoded values match the input without extra XML markup.
+- `src/main.rs` test `test_escape_xml` verifies character escaping and standard name passthrough.
+- Gate check passed: `OK: project-gate (full, checks=8)`.
 
 ## Historical Round 3 Validation (2026-10-13)
 
@@ -160,4 +175,18 @@ Rust derives its default suffix from `HOSTNAME`/`HOST`; Python uses `socket.geth
 
 ### Limits and next handoff
 
-The gate checks and reproductions used local mocks or loopback tests, without controlling a real television. Previous R1–R3 approval is retained as historical evidence. The current configuration milestone remains unapproved until R4 is fixed and independently verified, with the target of closure within three rounds for this milestone.
+The gate checks and reproductions used local mocks or loopback tests, without controlling a real television. Previous R1–R3 approval is retained as historical evidence. R4 has been fixed and verified in Round 5.
+
+## Round 5 Review — Client Configuration Milestone (Round 2 — Final Approval)
+
+**Review date**: 2026-10-15 (Australia/Sydney)
+
+**Reviewed commit**: `bca09dd4c288ce636af19d91dffb50032289ef3f`
+
+**Verdict**: **APPROVED — R1–R4 Closed**
+
+Commit `bca09dd` addresses Finding R4 in full and documents the real-device authentication behavior on Loewe chassis SL520 (bild 5.65):
+1. **XML Entity Escaping (R4 Fixed)**: Implemented `escape_xml` in both Rust ([`src/main.rs`](src/main.rs)) and Python ([`loewe_remote.py`](loewe_remote.py)) escaping all five XML special characters (`&`, `<`, `>`, `"`, `'`).
+2. **Automated Regression & Acceptance Testing**: Added `test_request_access_xml_escaping` in `test_remote.py` using `xml.etree.ElementTree` to verify complex XML characters produce parseable, well-formed payloads, and `test_escape_xml` in `src/main.rs`.
+3. **Real-Device Security Model Documentation**: Section 6 in both `README.md` and `README_cn.md` clearly outlines Loewe OS's local-network "Always Allow" policy for `Tablet` protocol pairing, the home LAN security perimeter, and the scope of port 905.
+4. **Project Gate & Invariants**: Verified with `./check.sh` (`full, checks=8`). Frontend byte-for-byte equality and ES5 compatibility preserved.
