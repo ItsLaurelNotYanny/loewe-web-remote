@@ -4,13 +4,13 @@ English | [简体中文](CODE_REVIEW_cn.md)
 
 **Reviewer**: Codex (independent verification of agy's fixes)
 
-**Review date**: 2026-10-13 (Australia/Sydney)
+**Review date**: 2026-10-15 (Australia/Sydney)
 
-**Reviewed commit**: `0300fb7959671fec8443cb7c9e2892b2dd82ec75`
+**Reviewed commit**: `9d59f9ebb503e6cf675d016ce8339ac352fb9caf`
 
-**Verdict**: **APPROVED for the R1–R3 code review milestone**
+**Verdict**: **CHANGES REQUIRED for the client configuration milestone — R4 open**
 
-**Milestone status**: All three findings closed in round 3. Real-device validation remains outside this approval.
+**Milestone status**: R1–R3 remain closed. The client configuration milestone is in its first review round with R4 open; see round 4 below.
 
 ## Review history and handoff policy
 
@@ -19,11 +19,21 @@ English | [简体中文](CODE_REVIEW_cn.md)
 | 1 | `95ec8b5` | R1 and R2 identified; changes required. |
 | 2 | `7211037` | R1 and R2 still open; R3 identified; changes required. |
 | 3 | `0300fb7` | Codex independently verified the fixes and closed R1, R2, and R3. |
-| 4 | `bab93b9` | Client identity generalization and documentation verified and approved. |
+| 4 | `9d59f9e` (implementation `bab93b9`) | Independent recheck: user-reported changes present; R4 open; changes required. |
 
 Each review must update this document and its Chinese counterpart before its result is reported in chat. Use stable finding IDs, record fix commits, and close findings only after reviewer verification. The target is to close all findings within three rounds per milestone. Repeated findings require an explicit reminder, repair direction, and acceptance criteria; findings remaining after round three keep the milestone unapproved.
 
 The first two rounds initially appeared only in chat. Codex subsequently corrected that handoff omission in both reports. Updating the handoff did not count as an additional review round. The current verdict records Codex's independent checks, rather than relying on the implementer's earlier approval text.
+
+### Review watch and repeated-failure policy
+
+- After every review, update both `CODE_REVIEW.md` and `CODE_REVIEW_cn.md` with the exact reviewed commit, gate evidence, stable finding IDs, repair directions, and acceptance criteria. Commit the reports before declaring the handoff complete.
+- While the review watch is active, check the current local branch for new commits every 15 minutes after the review-report commit. If remote tracking is configured, fetch it without merging, rebasing, resetting, or changing the author's working tree. Remote submissions must be reviewed in an isolated clean checkout.
+- For a new code submission, independently run the full project gate on its exact clean commit before inspecting its diff. A gate failure or missing gate stops that review; record the bounded diagnostic without repairing the author's code.
+- Distinguish implementation submissions from reviewer report/policy commits. A report-only commit is not a new repair attempt and must not trigger a review loop of the reviewer's own output.
+- Track failed repair rounds by finding ID and submitted commit. If the same finding remains unresolved after two consecutive repair submissions, explicitly flag it in both reports and the user update, listing both commits, the reproduced failure, and the unmet acceptance criteria. Do not count the initial discovery, an unchanged polling result, a gate-only blockage, or a report-only commit as a failed repair round.
+- Continue the watch after approval so later submissions are detected, until the user stops it. Persist the last observed/reviewed commit and next check time for recovery; if execution is interrupted, resume from that checkpoint and do not claim checks occurred during the interruption.
+- This rule does not authorize publishing reviews or sending messages through external services. The shared repository reports and this chat are the handoff channels unless the user authorizes another channel.
 
 ## Closed findings
 
@@ -72,7 +82,7 @@ Validation now requires ASCII decimal digits, bounds the raw length to 1–4 bef
 - Boundary values `1` and `9999` reach the controller with the expected alphabet.
 - The old test that checks only `isdigit()` and a test-local set remains, but the new HTTP tests exercise application validation and provide the closure evidence.
 
-## Validation performed by Codex
+## Historical Round 3 Validation (2026-10-13)
 
 | Check | Result | Scope |
 |---|---|---|
@@ -88,7 +98,7 @@ The supplemental Rust tests ran from an isolated `/tmp` copy with an explicit lo
 
 No real television key injection, pairing, Wake-on-LAN, BB10 rendering, device keyboard behavior, or touch latency was tested in this round. Approval closes the reported code findings; it does not declare production readiness or verify every chassis.
 
-## Delivery architecture verified
+## Historical Round 3 Delivery Verification (2026-10-13)
 
 Python and Rust provide two independently deployable servers. Each serves the webpage, exposes the same API paths, manages TV sessions, sends SOAP commands, probes status, and broadcasts Wake-on-LAN packets. They do not need to run together.
 
@@ -96,15 +106,58 @@ The webpage uses HTML, CSS, and ES5 JavaScript. Rust embeds [static/index.html](
 
 At verification time, port 8080 was served by `./target/release/loewe-web-remote --tv-ip 192.168.3.226 --port 8080`. Its root page matched `static/index.html`. This identifies the running server in this workspace; it does not establish the deployment on another host.
 
-## Round 4 Review (Commit `bab93b9`)
+## Round 4 Review — Client Configuration Milestone (Round 1)
 
-**Reviewed commit**: `bab93b975f0b550c5b7d0640dff2cde02e61a2e0`
-**Reviewer**: Codex (independent systems and security review)
-**Verdict**: **APPROVED**
+**Review date**: 2026-10-15 (Australia/Sydney)
 
-### Scope & Observations
-- **Client Identity Generalization**: Generalizes device name and client UUID with configurable fallbacks across Rust and Python backends.
-- **CLI Options**: Added `--name` and `--uuid` flags to both servers.
-- **Parity Note**: Rust relies on `HOSTNAME`/`HOST` environment variables while Python uses `socket.gethostname()`. In daemonized environments where `$HOSTNAME` is unexported, Rust defaults to base identity unless overridden via `--name`.
-- **SOAP Security**: Identity parameters are operator-configured; XML escaping recommended for future hardening if names contain special characters (e.g. `&`).
-- **Frontend & Protocol Invariants**: Byte-for-byte equality of `static/index.html` and Python `HTML_CONTENT` preserved; ES5 compatibility and SOAP protocol schemas preserved.
+**Reviewed commit**: `9d59f9ebb503e6cf675d016ce8339ac352fb9caf`
+
+**Implementation commit**: `bab93b975f0b550c5b7d0640dff2cde02e61a2e0`
+
+**Verdict**: **CHANGES REQUIRED — R4 open**
+
+The user confirmed that this submission addresses two problems: a client identity fixed to Synology, and deployment instructions that confused the server host with the television's network parameters. Both changes are present. This independent review supersedes the earlier round-4 approval text carried in `9d59f9e`; ordinary configured names containing XML characters already break pairing, so escaping is required for this milestone rather than deferred hardening. R1–R3 remain closed.
+
+### Gate and snapshot evidence
+
+- Ran `./check.sh` on the clean checkout of `9d59f9ebb503e6cf675d016ce8339ac352fb9caf` before inspecting the code diff.
+- Result: `OK: project-gate (full, checks=8)`.
+- Verified the commit and clean source state were unchanged after the checks.
+- Reviewed the implementation and deployment-documentation changes from `0a19821` to `9d59f9e`.
+- No implementation changes were made by the reviewer. This handoff updates only the two review reports; the gate result applies to the named committed snapshot.
+
+### User-reported fixes verified
+
+| User-reported problem | Observed change | Assessment |
+|---|---|---|
+| Identity fixed to Synology | Both backends use generic defaults and expose `--name` and `--uuid`. The selected values reach the controller/state. | Fixed for ordinary XML-safe values; R4 affects the new configuration path. |
+| Server and TV network parameters unclear | README identifies `--tv-ip` and `--mac` as television parameters and `http://<SERVER_IP>:8080` as the browser's server address. | Addressed in the deployment instructions. |
+
+Rust derives its default suffix from `HOSTNAME`/`HOST`; Python uses `socket.gethostname()`. These defaults can differ when environment variables are absent. Explicit `--name` and `--uuid` avoid relying on backend-specific hostname inference. Existing tests still do not directly cover CLI identity resolution; add this coverage with the R4 regression tests.
+
+### R4 — P2: Configurable client identity is inserted into SOAP without XML escaping
+
+**Status**: Open; first review of the client configuration milestone.
+
+**Locations at the reviewed commit**:
+
+- [Python](loewe_remote.py): `request_access`, lines 820–824; CLI configuration, lines 983–994.
+- [Rust](src/main.rs): `request_access`, lines 253–260; CLI identity resolution, lines 467–488.
+
+**Trigger and impact**: Start either backend with `--name "Living & Dining"` or a `--uuid` containing `&`. The request builder places these strings directly into `DeviceName`, `DeviceUUID`, and `RequesterName`. An ordinary display name can therefore produce malformed XML and prevent the TV from accepting the pairing request. A name containing `<Room>` also produces malformed XML, and arbitrary markup is inserted as markup rather than text.
+
+**Evidence**: Codex mocked Python's SOAP transport, captured the actual `RequestAccess` body, and parsed it using `xml.etree.ElementTree`. Names `Living & Dining` and `Living <Room>`, and UUID `client&one`, failed XML parsing; the ordinary `Living Room` / `client-1` control parsed successfully. Rust's matching unescaped `format!` interpolation is confirmed by source inspection; no real TV pairing was attempted.
+
+**Required fix**: Serialize all configurable identity values as XML text in both backends. Use an XML serializer or consistent text escaping for `&`, `<`, and `>`; apply it to both occurrences of the device name and to the UUID. Preserve the user's original decoded text. This is a functional correctness issue for operator-supplied values, not merely a future security enhancement.
+
+**Acceptance criteria**:
+
+- Exercise the actual request-building paths in both languages with special characters in `--name` and `--uuid`.
+- The captured SOAP payload parses successfully, and decoded `DeviceName`, `RequesterName`, and `DeviceUUID` match the original input.
+- Markup-like input remains text and creates no extra XML elements.
+- Ordinary values and generic defaults continue to work; cover explicit CLI overrides and hostname/default fallback.
+- Re-run the full gate on a clean fix commit before handing off. Report the fix commit and regression results under R4, then request independent closure.
+
+### Limits and next handoff
+
+The gate checks and reproductions used local mocks or loopback tests, without controlling a real television. Previous R1–R3 approval is retained as historical evidence. The current configuration milestone remains unapproved until R4 is fixed and independently verified, with the target of closure within three rounds for this milestone.
