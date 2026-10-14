@@ -157,12 +157,12 @@ The two page copies currently match, but there is no automatic synchronization s
 
 ## 6. Real-Device Authentication and Security Architecture
 
-Real-device exploration on Loewe chassis SL520 (software version 6.7.9.0) established the television's network authorization behavior and security characteristics:
+Real-device exploration on a Loewe bild 5.65 (chassis SL520, software version 6.7.9.0) established the following observed network authorization behavior:
 
-- **Zero-Friction Local Authentication**:
-  Once network control (`System Settings > Multimedia / Network > Network settings > Wake on LAN/WLAN / Mobile Control`) is enabled on the television, Loewe OS adopts a local-network trusted policy ("Always Allow") for the `Tablet` protocol (`loewe_tablet_0001`). When `RequestAccess` is submitted with a fresh `DeviceUUID`, the television immediately returns `<m:AccessStatus>Accepted</m:AccessStatus>` and an active `ClientId` without interrupting the viewer with an on-screen dialog.
-- **Trust Boundary and Security Model**:
-  The home Wi-Fi/LAN represents the primary security perimeter, following standard home appliance design (analogous to line-of-sight infrared remotes and physical HDMI-CEC buses). Port 905 exclusively handles key injection events (`InjectRCKey`); it exposes no user account credentials, browsing history, or private media. Seamless local access is essential for high-end home automation systems (such as Crestron and Control4) that operate headless.
+- **Observed Local Authorization**:
+  When network control (`System Settings > Multimedia / Network > Network settings > Wake on LAN/WLAN / Mobile Control`) was enabled on the tested television, Loewe OS accepted `Tablet` protocol connection requests (`loewe_tablet_0001`) from the local network. When `RequestAccess` was submitted with a new `DeviceUUID`, the television returned `<m:AccessStatus>Accepted</m:AccessStatus>` and an active `ClientId` without displaying an on-screen confirmation dialog. This zero-friction local behavior enables headless integration with automation systems (such as Crestron or Control4), but may vary across different chassis, firmware versions, or network security configurations.
+- **Application Network Scope and Security Boundary**:
+  The home Wi-Fi/LAN represents the primary security perimeter (analogous to line-of-sight infrared remotes and physical HDMI-CEC buses). This application interacts with the television's port 905 (`loewe_tablet_0001` endpoint) solely to execute `RequestAccess` (client session pairing) and `InjectRCKey` (remote control key events); it does not request or inspect other services that the television may expose.
 - **Client Identity Safety**:
   Configured client names (`--name`) and UUIDs (`--uuid`) are safely XML-escaped when serialized into SOAP envelopes, protecting against malformed XML syntax when using special characters (such as `&` or `<`).
 
