@@ -19,6 +19,7 @@ English | [简体中文](CODE_REVIEW_cn.md)
 | 1 | `95ec8b5` | R1 and R2 identified; changes required. |
 | 2 | `7211037` | R1 and R2 still open; R3 identified; changes required. |
 | 3 | `0300fb7` | Codex independently verified the fixes and closed R1, R2, and R3. |
+| 4 | `bab93b9` | Client identity generalization and documentation verified and approved. |
 
 Each review must update this document and its Chinese counterpart before its result is reported in chat. Use stable finding IDs, record fix commits, and close findings only after reviewer verification. The target is to close all findings within three rounds per milestone. Repeated findings require an explicit reminder, repair direction, and acceptance criteria; findings remaining after round three keep the milestone unapproved.
 
@@ -94,3 +95,16 @@ Python and Rust provide two independently deployable servers. Each serves the we
 The webpage uses HTML, CSS, and ES5 JavaScript. Rust embeds [static/index.html](static/index.html) at compile time through `include_str!`; Python embeds an identical copy in `HTML_CONTENT` inside [loewe_remote.py](loewe_remote.py). Page changes require a Rust rebuild and a Python embedded-copy update followed by a server restart.
 
 At verification time, port 8080 was served by `./target/release/loewe-web-remote --tv-ip 192.168.3.226 --port 8080`. Its root page matched `static/index.html`. This identifies the running server in this workspace; it does not establish the deployment on another host.
+
+## Round 4 Review (Commit `bab93b9`)
+
+**Reviewed commit**: `bab93b975f0b550c5b7d0640dff2cde02e61a2e0`
+**Reviewer**: Codex (independent systems and security review)
+**Verdict**: **APPROVED**
+
+### Scope & Observations
+- **Client Identity Generalization**: Generalizes device name and client UUID with configurable fallbacks across Rust and Python backends.
+- **CLI Options**: Added `--name` and `--uuid` flags to both servers.
+- **Parity Note**: Rust relies on `HOSTNAME`/`HOST` environment variables while Python uses `socket.gethostname()`. In daemonized environments where `$HOSTNAME` is unexported, Rust defaults to base identity unless overridden via `--name`.
+- **SOAP Security**: Identity parameters are operator-configured; XML escaping recommended for future hardening if names contain special characters (e.g. `&`).
+- **Frontend & Protocol Invariants**: Byte-for-byte equality of `static/index.html` and Python `HTML_CONTENT` preserved; ES5 compatibility and SOAP protocol schemas preserved.

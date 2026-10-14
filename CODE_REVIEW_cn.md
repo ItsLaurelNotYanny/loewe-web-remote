@@ -19,6 +19,7 @@
 | 第一轮 | `95ec8b5` | 发现 R1、R2；需要修改。 |
 | 第二轮 | `7211037` | R1、R2 仍未关闭；新增 R3；需要修改。 |
 | 第三轮 | `0300fb7` | Codex 独立验证修复，关闭 R1、R2、R3。 |
+| 第四轮 | `bab93b9` | 客户端标识通用化与文档说明核验通过。 |
 
 每轮评审须先更新本文和英文版本，再在聊天中汇报结果。使用稳定的问题编号，记录修复提交，只有评审者核验后才能关闭问题。每个里程碑以三轮内关闭全部问题为目标。重复问题应明确提示，并给出修复方向与验收条件；第三轮后仍有问题，则里程碑尚未通过。
 
@@ -94,3 +95,16 @@ Python 和 Rust 是两套可独立部署的服务端。每套都提供网页、�
 网页使用 HTML、CSS 和 ES5 JavaScript。Rust 通过 `include_str!` 在编译时嵌入 [static/index.html](static/index.html)；Python 在 [loewe_remote.py](loewe_remote.py) 的 `HTML_CONTENT` 中嵌入相同副本。修改页面后，Rust 需要重新编译；Python 需要同步内嵌副本并重启服务。
 
 核验时，8080 端口由 `./target/release/loewe-web-remote --tv-ip 192.168.3.226 --port 8080` 提供服务，其根页面与 `static/index.html` 一致。该结果确认本工作区正在运行的服务端，不能据此判断其他主机上的部署。
+
+## 第四轮评审（提交 `bab93b9`）
+
+**受审提交**：`bab93b975f0b550c5b7d0640dff2cde02e61a2e0`
+**评审者**：Codex（独立系统与安全评审）
+**结论**：**通过（APPROVED）**
+
+### 审查范围与观察
+- **客户端标识通用化**：在 Rust 与 Python 双后端中将设备名称与客户端 UUID 抽象为可配置项，并支持默认回退。
+- **CLI 参数**：两个服务端均新增 `--name` 与 `--uuid` 选项。
+- **环境一致性说明**：Rust 依赖 `HOSTNAME`/`HOST` 环境变量，而 Python 使用 `socket.gethostname()`。在未导出 `$HOSTNAME` 的守护进程环境中，Rust 将回退为基础标识，可通过 `--name` 显式指定。
+- **SOAP 安全与转义**：标识参数属于本地操作员配置；若名称包含特殊字符（如 `&`），建议在后续加固中引入 XML 实体转义。
+- **前端与协议不变量**：`static/index.html` 与 Python `HTML_CONTENT` 保持逐字节一致；ES5 兼容性与 SOAP 协议结构完整无损。
