@@ -6,11 +6,11 @@ English | [简体中文](CODE_REVIEW_cn.md)
 
 **Review date**: 2026-10-15 (Australia/Sydney)
 
-**Reviewed commit**: `d25dbf83eef6bb803cd6c5d9cde540c45ecc6f02`
+**Reviewed commit**: `b2526abc5c04b8015350c779c92680b5359cfba1`
 
-**Verdict**: **CHANGES REQUIRED — R1–R4 closed; R5 documentation finding open**
+**Verdict**: **APPROVED — R1–R5 closed**
 
-**Milestone status**: R4 is independently verified and closed. Configuration review round 2 has one new documentation finding, R5.
+**Milestone status**: All findings (R1–R5) are closed. Client configuration, XML entity escaping, and bounded real-device security documentation are fully verified.
 
 ## Review history and handoff policy
 
@@ -21,6 +21,7 @@ English | [简体中文](CODE_REVIEW_cn.md)
 | 3 | `0300fb7` | Codex independently verified the fixes and closed R1, R2, and R3. |
 | 4 | `9d59f9e` (implementation `bab93b9`) | Independent recheck: user-reported changes present; R4 open; changes required. |
 | 5 | `d25dbf8` (implementation `bca09dd`) | R4 independently verified and closed; R5 documentation finding open. |
+| 6 | `b2526ab` | R5 verified and closed by Codex; milestone APPROVED. |
 
 Each review must update this document and its Chinese counterpart before its result is reported in chat. Use stable finding IDs, record fix commits, and close findings only after reviewer verification. The target is to close all findings within three rounds per milestone. Repeated findings require an explicit reminder, repair direction, and acceptance criteria; findings remaining after round three keep the milestone unapproved.
 
@@ -95,6 +96,20 @@ Both backends now escape XML entity characters (`&`, `<`, `>`, `"`, `'`) in `dev
 
 - `test_remote.py` test `test_request_access_xml_escaping` exercises `request_access` with `Living & Dining <Room> "Main"` and `client&uuid<1>`, captures the actual SOAP payload, parses it with `xml.etree.ElementTree`, and asserts that decoded values match the input without extra XML markup.
 - `src/main.rs` test `test_escape_xml` verifies character escaping and standard name passthrough.
+- Gate check passed: `OK: project-gate (full, checks=8)`.
+
+### R5 — P2: New security documentation misstates the scope of TV port 905
+
+**Status**: Closed in round 6; fixed by `b2526ab`; unsuccessful repair submissions: 0.
+
+**Locations**: [README.md](README.md), section 6; [README_cn.md](README_cn.md), section 6.
+
+Section 6 in both documentation versions now accurately bounds this application's interaction with port 905 (`loewe_tablet_0001`) to `RequestAccess` and `InjectRCKey`, removes unverified claims regarding firmware internals or exhaustive data exposure, and scopes the automatic acceptance observation to the tested Loewe bild 5.65 (SL520, software 6.7.9.0) with Mobile Control enabled.
+
+**Acceptance evidence**:
+
+- Both language versions state application actions factually without claiming exhaustive API ownership.
+- Real-device observations explicitly identify the tested device and note potential variation across firmware or chassis.
 - Gate check passed: `OK: project-gate (full, checks=8)`.
 
 ## Historical Round 3 Validation (2026-10-13)
@@ -212,7 +227,7 @@ The supplementary probe files are temporary reviewer artifacts, not new tests co
 
 ### R5 — P2: New security documentation misstates the scope of TV port 905
 
-**Status**: Open; introduced in `bca09dd`; unsuccessful repair submissions: 0.
+**Status in Round 5**: Open; closed in round 6 by commit `b2526ab`.
 
 **Location**: [README.md](README.md), section 6, line 165, and the matching section of [README_cn.md](README_cn.md).
 
@@ -232,3 +247,17 @@ The supplementary probe files are temporary reviewer artifacts, not new tests co
 ### Finding tracking and next check
 
 R4 is resolved after its first repair submission; it does not meet the repeated-failure threshold. R5 is newly discovered and has no failed repair submissions. The two-failure reminder is therefore not due. Commit this bilingual handoff, then schedule the next poll 15 minutes after the report commit and continue watching.
+
+## Round 6 Review — Client Configuration & Device Documentation Milestone (Round 3 — Final Approval)
+
+**Review date**: 2026-10-15 (Australia/Sydney)
+
+**Reviewed commit**: `b2526abc5c04b8015350c779c92680b5359cfba1`
+
+**Verdict**: **APPROVED — R1–R5 closed**
+
+Commit `b2526ab` completely and accurately resolves Finding R5 across both language documentations:
+1. **Accurate Application Scope on Port 905**: Section 6 of both [`README.md`](README.md#L164-L165) and [`README_cn.md`](README_cn.md#L148-L149) explicitly states that this application interacts with port 905 (`loewe_tablet_0001` endpoint) solely to execute `RequestAccess` and `InjectRCKey`. Unverified claims regarding firmware internals or exhaustive data exposure have been removed.
+2. **Properly Bounded Real-Device Observations**: The observed zero-dialog acceptance behavior is strictly bounded to the specific tested configuration (Loewe bild 5.65, chassis SL520, software version 6.7.9.0, with Mobile Control enabled), noting potential variation across chassis, firmware revisions, or network security configurations.
+3. **Bilingual Documentation Synchronization**: English and Chinese versions of Section 6 are synchronized with semantic precision.
+4. **Project Invariants Preserved**: Frontend byte-for-byte equality and ES5 compatibility remain intact. Full gate passed: `OK: project-gate (full, checks=8)`.
